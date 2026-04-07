@@ -12,7 +12,10 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "isolatedModules": true
+    "isolatedModules": true,
+    "paths": {
+      "@strata-adapters/*": ["./src/*"]
+    }
   },
   "include": ["src", "tests"],
   "exclude": ["node_modules", "dist"]

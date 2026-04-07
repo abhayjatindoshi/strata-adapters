@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import type { Tenant } from 'strata-data-sync';
-import { LocalStorageAdapter } from '../src/local-storage/index';
+import { LocalStorageAdapter } from '../../src/adapters/local-storage/local-storage';
 
 // Minimal localStorage polyfill for Node
 function createLocalStoragePolyfill(): Storage {

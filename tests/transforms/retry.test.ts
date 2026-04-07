@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { MemoryStorageAdapter } from 'strata-data-sync';
-import { withRetry } from '../src/transforms/retry';
+import { withRetry } from '../../src/transforms/retry';
 
 describe('withRetry', () => {
   it('passes through successful read', async () => {

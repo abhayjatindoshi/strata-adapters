@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { MemoryStorageAdapter } from 'strata-data-sync';
-import { withGzip } from '../src/transforms/index';
+import { withGzip } from '../../src/transforms/index';
 
 describe('withGzip', () => {
   it('round-trips data through write/read', async () => {

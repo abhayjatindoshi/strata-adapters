@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Pbkdf2EncryptionService, AesGcmEncryptionStrategy, InvalidEncryptionKeyError } from '../src/encryption/index';
+import { Pbkdf2EncryptionService, AesGcmEncryptionStrategy, InvalidEncryptionKeyError } from '../../src/encryption/index';
 
 describe('Pbkdf2EncryptionService', () => {
   const appId = 'test-app';
