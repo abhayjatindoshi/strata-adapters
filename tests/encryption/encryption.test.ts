@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { Pbkdf2EncryptionService, AesGcmEncryptionStrategy, InvalidEncryptionKeyError } from '../../src/encryption/index';
+import { InvalidEncryptionKeyError } from 'strata-data-sync';
+import { Pbkdf2EncryptionService, AesGcmEncryptionStrategy } from '../../src/encryption/index';
 
 describe('Pbkdf2EncryptionService', () => {
   const appId = 'test-app';
@@ -23,6 +24,8 @@ describe('Pbkdf2EncryptionService', () => {
     const data = new Uint8Array([1, 2, 3]);
     const encoded = await svc.encrypt('__tenants', data, keys);
     expect(encoded).toEqual(data);
+    const decoded = await svc.decrypt('__tenants', data, keys);
+    expect(decoded).toEqual(data);
   });
 
   it('throws when encrypting partition data with DEK not loaded', async () => {
@@ -120,6 +123,18 @@ describe('Pbkdf2EncryptionService', () => {
     const keys = await svc.deriveKeys('password', appId);
     // Keys without DEK (no generateKeyData/loadKeyData)
     await expect(svc.rekey(keys, 'new-password', appId)).rejects.toThrow('No DEK loaded');
+  });
+
+  it('deriveKeys reuses salt from rawMarkerBytes', async () => {
+    const svc = createService();
+    // First derive to get a salt via __strata round-trip
+    const keys1 = await svc.deriveKeys('password', appId);
+    const data = new TextEncoder().encode('marker');
+    const encrypted = await svc.encrypt('__strata', data, keys1);
+    // encrypted starts with 16-byte salt; pass it as rawMarkerBytes
+    const keys2 = await svc.deriveKeys('password', appId, encrypted);
+    const decrypted = await svc.decrypt('__strata', encrypted, keys2);
+    expect(decrypted).toEqual(data);
   });
 
   it('throws on invalid encryption keys object', async () => {

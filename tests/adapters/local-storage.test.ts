@@ -78,6 +78,38 @@ describe('LocalStorageAdapter', () => {
       const result = await adapter.read(tenant, 'k');
       expect(result).toEqual(new Uint8Array([2]));
     });
+
+    it('wraps setItem errors', async () => {
+      const orig = globalThis.localStorage.setItem;
+      globalThis.localStorage.setItem = () => { throw new Error('QuotaExceededError'); };
+      try {
+        await expect(adapter.write(tenant, 'k', new Uint8Array([1])))
+          .rejects.toThrow('localStorage write failed for key "k": QuotaExceededError');
+      } finally {
+        globalThis.localStorage.setItem = orig;
+      }
+    });
+
+    it('wraps non-Error thrown values', async () => {
+      const orig = globalThis.localStorage.setItem;
+      globalThis.localStorage.setItem = () => { throw 'string error'; };
+      try {
+        await expect(adapter.write(tenant, 'k', new Uint8Array([1])))
+          .rejects.toThrow('localStorage write failed for key "k": string error');
+      } finally {
+        globalThis.localStorage.setItem = orig;
+      }
+    });
+  });
+
+  it('throws when localStorage is unavailable', () => {
+    const orig = globalThis.localStorage;
+    delete (globalThis as any).localStorage;
+    try {
+      expect(() => new LocalStorageAdapter()).toThrow('requires a browser environment');
+    } finally {
+      (globalThis as any).localStorage = orig;
+    }
   });
 
   describe('delete', () => {
