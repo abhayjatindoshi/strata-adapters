@@ -1,6 +1,6 @@
 import type { EncryptionStrategy } from 'strata-data-sync';
 import { aesGcmEncrypt, aesGcmDecrypt } from 'strata-data-sync';
-import { InvalidEncryptionKeyError } from '../invalid-key-error';
+import { InvalidEncryptionKeyError } from 'strata-data-sync';
 
 export class AesGcmEncryptionStrategy implements EncryptionStrategy<CryptoKey> {
   async encrypt(data: Uint8Array, key: CryptoKey): Promise<Uint8Array> {
