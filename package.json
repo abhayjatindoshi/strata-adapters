@@ -1,6 +1,6 @@
 {
   "name": "strata-adapters",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "External-service adapters for strata-data-sync — cloud storage, local persistence, and encryption implementations",
   "homepage": "https://github.com/abhayjatindoshi/strata-adapters#readme",
   "bugs": {
