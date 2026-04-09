@@ -24,13 +24,13 @@
     "test": "vitest run"
   },
   "peerDependencies": {
-    "strata-data-sync": "^0.1.0"
+    "strata-data-sync": "file:../strata-data-sync"
   },
   "devDependencies": {
     "@types/debug": "^4.1.13",
     "@types/node": "^25.5.0",
     "@vitest/coverage-v8": "^4.1.1",
-    "strata-data-sync": "^0.1.0",
+    "strata-data-sync": "file:../strata-data-sync",
     "typescript": "^5.9.3",
     "vitest": "^4.1.0"
   },

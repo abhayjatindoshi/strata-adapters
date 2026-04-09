@@ -1,0 +1,177 @@
+import type { StorageAdapter, Tenant } from 'strata-data-sync'
+import { compositeKey } from 'strata-data-sync'
+
+const DRIVE_API = 'https://www.googleapis.com/drive/v3/files'
+const UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3/files'
+
+type DriveSpace = 'appDataFolder' | 'drive'
+
+type DriveMeta = {
+  space: DriveSpace
+  folderId?: string
+}
+
+function getDriveMeta(tenant: Tenant | undefined): DriveMeta {
+  if (!tenant) return { space: 'appDataFolder' }
+  const meta = tenant.meta as { space?: string; folderId?: string }
+  const space = meta.space as DriveSpace | undefined
+  if (!space) throw new Error(`Tenant "${tenant.id}" missing required meta.space`)
+  if (space === 'drive' && !meta.folderId) {
+    throw new Error(`Tenant "${tenant.id}" with space "drive" requires meta.folderId`)
+  }
+  return { space, folderId: meta.folderId }
+}
+
+export class GoogleDriveAdapter implements StorageAdapter {
+  private readonly getAccessToken: () => Promise<string>
+  private readonly fileIdCache = new Map<string, string>()
+
+  constructor(getAccessToken: () => Promise<string>) {
+    this.getAccessToken = getAccessToken
+  }
+
+  deriveTenantId(meta: Record<string, unknown>): string {
+    const folderId = meta.folderId as string | undefined
+    if (!folderId) throw new Error('Cannot derive tenant ID: meta.folderId is required')
+    return folderId
+  }
+
+  async read(tenant: Tenant | undefined, key: string): Promise<Uint8Array | null> {
+    const fileId = await this.resolveFileId(tenant, key)
+    if (!fileId) return null
+
+    const token = await this.getAccessToken()
+    const response = await fetch(`${DRIVE_API}/${fileId}?alt=media`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+
+    if (response.status === 404) {
+      this.fileIdCache.delete(compositeKey(tenant, key))
+      return null
+    }
+    if (!response.ok) throw new DriveApiError('read', response)
+
+    return new Uint8Array(await response.arrayBuffer())
+  }
+
+  async write(tenant: Tenant | undefined, key: string, data: Uint8Array): Promise<void> {
+    const fileId = await this.resolveFileId(tenant, key)
+    const token = await this.getAccessToken()
+
+    if (fileId) {
+      const response = await fetch(`${UPLOAD_API}/${fileId}?uploadType=media`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/octet-stream',
+        },
+        body: data as BodyInit,
+      })
+      if (!response.ok) throw new DriveApiError('write (update)', response)
+    } else {
+      const { space, folderId } = getDriveMeta(tenant)
+      const metadata: Record<string, unknown> = { name: compositeKey(tenant, key) }
+      if (space === 'appDataFolder') {
+        metadata.parents = ['appDataFolder']
+      } else if (folderId) {
+        metadata.parents = [folderId]
+      }
+
+      const boundary = `-----strata-${crypto.randomUUID()}`
+      const body = [
+        `--${boundary}\r\n`,
+        'Content-Type: application/json; charset=UTF-8\r\n\r\n',
+        JSON.stringify(metadata),
+        `\r\n--${boundary}\r\n`,
+        'Content-Type: application/octet-stream\r\n\r\n',
+      ].join('')
+
+      const prefix = new TextEncoder().encode(body)
+      const suffix = new TextEncoder().encode(`\r\n--${boundary}--`)
+      const multipart = new Uint8Array(prefix.length + data.length + suffix.length)
+      multipart.set(prefix, 0)
+      multipart.set(data, prefix.length)
+      multipart.set(suffix, prefix.length + data.length)
+
+      const response = await fetch(`${UPLOAD_API}?uploadType=multipart`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': `multipart/related; boundary=${boundary}`,
+        },
+        body: multipart,
+      })
+      if (!response.ok) throw new DriveApiError('write (create)', response)
+
+      const result = (await response.json()) as { id: string }
+      this.fileIdCache.set(compositeKey(tenant, key), result.id)
+    }
+  }
+
+  async delete(tenant: Tenant | undefined, key: string): Promise<boolean> {
+    const fileId = await this.resolveFileId(tenant, key)
+    if (!fileId) return false
+
+    const token = await this.getAccessToken()
+    const response = await fetch(`${DRIVE_API}/${fileId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+
+    if (response.status === 404) {
+      this.fileIdCache.delete(compositeKey(tenant, key))
+      return false
+    }
+    if (!response.ok) throw new DriveApiError('delete', response)
+    this.fileIdCache.delete(compositeKey(tenant, key))
+    return true
+  }
+
+  private async resolveFileId(tenant: Tenant | undefined, key: string): Promise<string | null> {
+    const cacheKey = compositeKey(tenant, key)
+    const cached = this.fileIdCache.get(cacheKey)
+    if (cached) return cached
+
+    const { space, folderId } = getDriveMeta(tenant)
+    const fileName = cacheKey
+    const token = await this.getAccessToken()
+
+    const safeName = fileName.replace(/\\/g, '\\\\').replace(/'/g, "\\'")
+    let q = `name='${safeName}' and trashed=false`
+    if (space === 'appDataFolder') {
+      q += ` and 'appDataFolder' in parents`
+    } else if (folderId) {
+      const safeFolderId = folderId.replace(/\\/g, '\\\\').replace(/'/g, "\\'")
+      q += ` and '${safeFolderId}' in parents`
+    }
+
+    const params = new URLSearchParams({
+      q,
+      fields: 'files(id)',
+      pageSize: '1',
+    })
+    if (space === 'appDataFolder') {
+      params.set('spaces', 'appDataFolder')
+    }
+
+    const response = await fetch(`${DRIVE_API}?${params}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!response.ok) throw new DriveApiError('resolveFileId', response)
+
+    const result = (await response.json()) as { files: { id: string }[] }
+    const fileId = result.files[0]?.id ?? null
+
+    if (fileId) this.fileIdCache.set(cacheKey, fileId)
+    return fileId
+  }
+}
+
+class DriveApiError extends Error {
+  readonly status: number
+  constructor(operation: string, response: Response) {
+    super(`Google Drive API error during ${operation}: ${response.status} ${response.statusText}`)
+    this.name = 'DriveApiError'
+    this.status = response.status
+  }
+}
