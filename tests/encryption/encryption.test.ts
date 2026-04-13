@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { InvalidEncryptionKeyError } from 'strata-data-sync';
-import { Pbkdf2EncryptionService, AesGcmEncryptionStrategy } from '../../src/encryption/index';
+import { Pbkdf2EncryptionService, AesGcmEncryptionStrategy } from '@strata-adapters/encryption/index';
 
 describe('Pbkdf2EncryptionService', () => {
   const appId = 'test-app';

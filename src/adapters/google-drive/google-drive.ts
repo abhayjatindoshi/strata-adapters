@@ -1,5 +1,14 @@
 import type { StorageAdapter, Tenant } from 'strata-data-sync'
 import { compositeKey } from 'strata-data-sync'
+import type { ErrorOperation } from '@strata-adapters/errors/strata-error'
+import {
+  StrataError,
+  AuthExpiredError,
+  PermissionDeniedError,
+  NotFoundError,
+  RateLimitedError,
+  OfflineError,
+} from '@strata-adapters/errors/strata-error'
 
 const DRIVE_API = 'https://www.googleapis.com/drive/v3/files'
 const UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3/files'
@@ -49,7 +58,7 @@ export class GoogleDriveAdapter implements StorageAdapter {
       this.fileIdCache.delete(compositeKey(tenant, key))
       return null
     }
-    if (!response.ok) throw new DriveApiError('read', response)
+    if (!response.ok) throw mapDriveError('read', response)
 
     return new Uint8Array(await response.arrayBuffer())
   }
@@ -67,7 +76,7 @@ export class GoogleDriveAdapter implements StorageAdapter {
         },
         body: data as BodyInit,
       })
-      if (!response.ok) throw new DriveApiError('write (update)', response)
+      if (!response.ok) throw mapDriveError('write', response)
     } else {
       const { space, folderId } = getDriveMeta(tenant)
       const metadata: Record<string, unknown> = { name: compositeKey(tenant, key) }
@@ -101,7 +110,7 @@ export class GoogleDriveAdapter implements StorageAdapter {
         },
         body: multipart,
       })
-      if (!response.ok) throw new DriveApiError('write (create)', response)
+      if (!response.ok) throw mapDriveError('write', response)
 
       const result = (await response.json()) as { id: string }
       this.fileIdCache.set(compositeKey(tenant, key), result.id)
@@ -122,7 +131,7 @@ export class GoogleDriveAdapter implements StorageAdapter {
       this.fileIdCache.delete(compositeKey(tenant, key))
       return false
     }
-    if (!response.ok) throw new DriveApiError('delete', response)
+    if (!response.ok) throw mapDriveError('delete', response)
     this.fileIdCache.delete(compositeKey(tenant, key))
     return true
   }
@@ -157,7 +166,7 @@ export class GoogleDriveAdapter implements StorageAdapter {
     const response = await fetch(`${DRIVE_API}?${params}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
-    if (!response.ok) throw new DriveApiError('resolveFileId', response)
+    if (!response.ok) throw mapDriveError('resolve', response)
 
     const result = (await response.json()) as { files: { id: string }[] }
     const fileId = result.files[0]?.id ?? null
@@ -167,11 +176,30 @@ export class GoogleDriveAdapter implements StorageAdapter {
   }
 }
 
-class DriveApiError extends Error {
-  readonly status: number
-  constructor(operation: string, response: Response) {
-    super(`Google Drive API error during ${operation}: ${response.status} ${response.statusText}`)
-    this.name = 'DriveApiError'
-    this.status = response.status
+function parseRetryAfter(response: Response): number | undefined {
+  const header = response.headers.get('Retry-After')
+  if (!header) return undefined
+  const seconds = Number(header)
+  return Number.isFinite(seconds) ? seconds * 1000 : undefined
+}
+
+function mapDriveError(operation: ErrorOperation, response: Response): StrataError {
+  const message = `Google Drive API error during ${operation}: ${response.status} ${response.statusText}`
+  switch (response.status) {
+    case 401:
+      return new AuthExpiredError(operation, new Error(message))
+    case 403:
+      return new PermissionDeniedError(operation, new Error(message))
+    case 404:
+      return new NotFoundError(operation, new Error(message))
+    case 429:
+      return new RateLimitedError(operation, parseRetryAfter(response), new Error(message))
+    default:
+      return new StrataError(message, {
+        kind: 'unknown',
+        operation,
+        retryable: response.status >= 500,
+        originalError: new Error(message),
+      })
   }
 }

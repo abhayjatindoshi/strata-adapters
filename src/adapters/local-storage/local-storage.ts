@@ -1,5 +1,6 @@
 import type { StorageAdapter, Tenant } from 'strata-data-sync';
 import { compositeKey, toBase64, fromBase64 } from 'strata-data-sync';
+import { QuotaExceededError } from '@strata-adapters/errors/strata-error';
 
 export class LocalStorageAdapter implements StorageAdapter {
 
@@ -28,7 +29,11 @@ export class LocalStorageAdapter implements StorageAdapter {
         toBase64(data),
       );
     } catch (e) {
-      throw new Error(`localStorage write failed for key "${key}": ${e instanceof Error ? e.message : String(e)}`);
+      const message = e instanceof Error ? e.message : String(e);
+      if (message.includes('QuotaExceededError') || message.includes('quota')) {
+        throw new QuotaExceededError('write', e instanceof Error ? e : new Error(message));
+      }
+      throw new Error(`localStorage write failed for key "${key}": ${message}`);
     }
   }
 

@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import type { Tenant } from 'strata-data-sync';
-import { GoogleDriveAdapter } from '../../src/adapters/google-drive/google-drive';
+import { GoogleDriveAdapter } from '@strata-adapters/adapters/google-drive/google-drive';
+import {
+  PermissionDeniedError,
+  AuthExpiredError,
+  StrataError,
+} from '@strata-adapters/errors/strata-error';
 
 const DRIVE_API = 'https://www.googleapis.com/drive/v3/files';
 const UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3/files';
@@ -186,7 +191,7 @@ describe('GoogleDriveAdapter', () => {
       mockFetch.mockResolvedValueOnce(errorResponse(403, 'Forbidden'));
 
       await expect(adapter.write(appDataTenant, 'doc', new Uint8Array([1]))).rejects.toThrow(
-        'Google Drive API error during write (create): 403 Forbidden',
+        PermissionDeniedError,
       );
     });
 
@@ -195,7 +200,7 @@ describe('GoogleDriveAdapter', () => {
       mockFetch.mockResolvedValueOnce(errorResponse(500, 'Internal Server Error'));
 
       await expect(adapter.write(appDataTenant, 'doc', new Uint8Array([1]))).rejects.toThrow(
-        'Google Drive API error during write (update): 500 Internal Server Error',
+        StrataError,
       );
     });
 
@@ -306,7 +311,7 @@ describe('GoogleDriveAdapter', () => {
       mockFetch.mockResolvedValueOnce(errorResponse(401, 'Unauthorized'));
 
       await expect(adapter.read(appDataTenant, 'key1')).rejects.toThrow(
-        'Google Drive API error during resolveFileId: 401 Unauthorized',
+        AuthExpiredError,
       );
     });
 

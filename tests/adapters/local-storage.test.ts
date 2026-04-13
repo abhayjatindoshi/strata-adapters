@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import type { Tenant } from 'strata-data-sync';
-import { LocalStorageAdapter } from '../../src/adapters/local-storage/local-storage';
+import { LocalStorageAdapter } from '@strata-adapters/adapters/local-storage/local-storage';
+import { QuotaExceededError } from '@strata-adapters/errors/strata-error';
 
 // Minimal localStorage polyfill for Node
 function createLocalStoragePolyfill(): Storage {
@@ -79,12 +80,12 @@ describe('LocalStorageAdapter', () => {
       expect(result).toEqual(new Uint8Array([2]));
     });
 
-    it('wraps setItem errors', async () => {
+    it('throws QuotaExceededError on quota errors', async () => {
       const orig = globalThis.localStorage.setItem;
       globalThis.localStorage.setItem = () => { throw new Error('QuotaExceededError'); };
       try {
         await expect(adapter.write(tenant, 'k', new Uint8Array([1])))
-          .rejects.toThrow('localStorage write failed for key "k": QuotaExceededError');
+          .rejects.toThrow(QuotaExceededError);
       } finally {
         globalThis.localStorage.setItem = orig;
       }

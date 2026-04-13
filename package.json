@@ -15,6 +15,16 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./react": {
+      "types": "./dist/react/index.d.ts",
+      "import": "./dist/react/index.js"
+    }
+  },
   "files": [
     "dist"
   ],
@@ -24,12 +34,17 @@
     "test": "vitest run"
   },
   "peerDependencies": {
+    "react": "^19.2.5",
+    "rxjs": "^7.8.2",
     "strata-data-sync": "file:../strata-data-sync"
   },
   "devDependencies": {
     "@types/debug": "^4.1.13",
     "@types/node": "^25.5.0",
+    "@types/react": "^19.2.14",
     "@vitest/coverage-v8": "^4.1.1",
+    "react": "^19.2.5",
+    "rxjs": "^7.8.2",
     "strata-data-sync": "file:../strata-data-sync",
     "typescript": "^5.9.3",
     "vitest": "^4.1.0"
