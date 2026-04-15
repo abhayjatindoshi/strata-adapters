@@ -26,31 +26,31 @@ describe('getOrCreateDeviceId', () => {
   });
 
   it('generates a UUID', () => {
-    const id = getOrCreateDeviceId('test-app');
+    const id = getOrCreateDeviceId('test_device_id');
     expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
   });
 
   it('returns the same ID on subsequent calls', () => {
-    const id1 = getOrCreateDeviceId('test-app');
-    const id2 = getOrCreateDeviceId('test-app');
+    const id1 = getOrCreateDeviceId('test_device_id');
+    const id2 = getOrCreateDeviceId('test_device_id');
     expect(id1).toBe(id2);
   });
 
-  it('generates different IDs for different apps', () => {
-    const id1 = getOrCreateDeviceId('app-a');
-    const id2 = getOrCreateDeviceId('app-b');
+  it('generates different IDs for different keys', () => {
+    const id1 = getOrCreateDeviceId('device_a');
+    const id2 = getOrCreateDeviceId('device_b');
     expect(id1).not.toBe(id2);
   });
 
   it('persists ID in localStorage', () => {
-    const id = getOrCreateDeviceId('test-app');
-    const stored = globalThis.localStorage.getItem('strata-device-id:test-app');
+    const id = getOrCreateDeviceId('test_device_id');
+    const stored = globalThis.localStorage.getItem('test_device_id');
     expect(stored).toBe(id);
   });
 
   it('reads existing ID from localStorage', () => {
-    globalThis.localStorage.setItem('strata-device-id:test-app', 'existing-device-id');
-    const id = getOrCreateDeviceId('test-app');
+    globalThis.localStorage.setItem('test_device_id', 'existing-device-id');
+    const id = getOrCreateDeviceId('test_device_id');
     expect(id).toBe('existing-device-id');
   });
 });

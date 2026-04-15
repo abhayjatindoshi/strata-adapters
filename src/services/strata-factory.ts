@@ -23,6 +23,7 @@ export type CloudProvider = 'google-drive';
 export type StrataInitConfig = {
   readonly auth: AuthAdapter;
   readonly appId: string;
+  readonly deviceIdKey: string;
   readonly entities: ReadonlyArray<EntityDefinition<any>>;
   readonly cloudProvider: CloudProvider;
   readonly encryption?: {
@@ -82,9 +83,9 @@ function createEncryptionService(
 }
 
 export function createStrataInstance(config: StrataInitConfig): StrataInstance {
-  const { auth, appId, entities, cloudProvider, encryption, migrations, options } = config;
+  const { auth, appId, deviceIdKey, entities, cloudProvider, encryption, migrations, options } = config;
 
-  const deviceId = getOrCreateDeviceId(appId);
+  const deviceId = getOrCreateDeviceId(deviceIdKey);
   const localAdapter = new LocalStorageAdapter(appId);
   const errorBus = new ErrorBus();
   const cloudAdapter = createCloudAdapter(cloudProvider, auth, errorBus);

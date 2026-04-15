@@ -8,6 +8,7 @@ import { StrataContext } from './context';
 export type StrataProviderProps = {
   readonly auth: AuthAdapter;
   readonly appId: string;
+  readonly deviceIdKey: string;
   readonly entities: ReadonlyArray<EntityDefinition<any>>;
   readonly cloudProvider: CloudProvider;
   readonly encryption?: {
@@ -21,6 +22,7 @@ export type StrataProviderProps = {
 export function StrataProvider({
   auth,
   appId,
+  deviceIdKey,
   entities,
   cloudProvider,
   encryption,
@@ -42,6 +44,7 @@ export function StrataProvider({
       const inst = createStrataInstance({
         auth,
         appId,
+        deviceIdKey,
         entities,
         cloudProvider,
         encryption,
