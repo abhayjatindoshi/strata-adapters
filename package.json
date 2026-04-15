@@ -29,7 +29,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json --resolve-full-paths",
     "dev": "tsc -p tsconfig.build.json --watch",
     "test": "vitest run"
   },
@@ -46,6 +46,7 @@
     "react": "^19.2.5",
     "rxjs": "^7.8.2",
     "strata-data-sync": "file:../strata-data-sync",
+    "tsc-alias": "^1.8.16",
     "typescript": "^5.9.3",
     "vitest": "^4.1.0"
   },
