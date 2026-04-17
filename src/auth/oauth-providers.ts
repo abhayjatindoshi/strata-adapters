@@ -1,11 +1,18 @@
-export type OAuthProviderConfig = {
+export type ScopeMap = Readonly<Record<string, readonly string[]>>;
+
+export type ProviderInfo = {
+  readonly name: string;
+  readonly label: string;
+};
+
+export type ProviderConfig = ProviderInfo & {
   readonly authUrl: string;
   readonly tokenUrl: string;
   readonly revokeUrl: string;
   readonly clientId: string;
-  readonly clientSecret: string;
-  readonly callbackUrl: string;
-  readonly scopes: Readonly<Record<string, readonly string[]>>;
+  readonly clientSecret?: string;
+  readonly callbackUrl?: string;
+  readonly scopes: ScopeMap;
 };
 
 export type OAuthTokenResponse = {
@@ -16,26 +23,16 @@ export type OAuthTokenResponse = {
   readonly scope?: string;
 };
 
-type GoogleProviderConfig = {
+type TokenRequest = {
+  readonly tokenUrl: string;
   readonly clientId: string;
   readonly clientSecret: string;
-  readonly callbackUrl: string;
-  readonly scopes: Readonly<Record<string, readonly string[]>>;
+  readonly callbackUrl?: string;
 };
-
-const GOOGLE_URLS = {
-  authUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
-  tokenUrl: 'https://oauth2.googleapis.com/token',
-  revokeUrl: 'https://oauth2.googleapis.com/revoke',
-} as const;
-
-export function createGoogleProvider(config: GoogleProviderConfig): OAuthProviderConfig {
-  return { ...GOOGLE_URLS, ...config };
-}
 
 export async function exchangeCode(
   code: string,
-  config: Pick<OAuthProviderConfig, 'tokenUrl' | 'clientId' | 'clientSecret' | 'callbackUrl'>,
+  config: TokenRequest & { readonly callbackUrl: string },
 ): Promise<OAuthTokenResponse> {
   const response = await fetch(config.tokenUrl, {
     method: 'POST',
@@ -59,7 +56,7 @@ export async function exchangeCode(
 
 export async function refreshAccessToken(
   refreshToken: string,
-  config: Pick<OAuthProviderConfig, 'tokenUrl' | 'clientId' | 'clientSecret'>,
+  config: TokenRequest,
 ): Promise<OAuthTokenResponse> {
   const response = await fetch(config.tokenUrl, {
     method: 'POST',

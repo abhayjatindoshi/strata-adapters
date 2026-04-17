@@ -1,5 +1,6 @@
 import { BehaviorSubject, map } from 'rxjs';
 import type { AuthAdapter, AuthState } from './auth-adapter';
+import type { ProviderInfo } from './oauth-providers';
 import { isSafeReturnUrl } from './oauth-utils';
 
 export type AuthServiceState = {
@@ -22,6 +23,7 @@ export type AuthServiceConfig = {
   readonly sessionKey: string;
   readonly returnUrlKey: string;
   readonly featureCredsKey?: string;
+  readonly providers?: readonly ProviderInfo[];
 };
 
 export class AuthService {
@@ -29,9 +31,11 @@ export class AuthService {
   private readonly config: AuthServiceConfig;
 
   readonly state$ = this.authState$.asObservable();
+  readonly providers: readonly ProviderInfo[];
 
   constructor(config: AuthServiceConfig) {
     this.config = config;
+    this.providers = config.providers ?? [];
   }
 
   getState(): AuthServiceState {

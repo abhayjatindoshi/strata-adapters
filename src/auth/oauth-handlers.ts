@@ -1,4 +1,4 @@
-import type { OAuthProviderConfig } from './oauth-providers';
+import type { ProviderConfig } from './oauth-providers';
 import { exchangeCode, refreshAccessToken } from './oauth-providers';
 import {
   generateState,
@@ -14,11 +14,16 @@ import {
 
 export type OAuthHandlersConfig = {
   readonly cookieName: string;
-  readonly provider: OAuthProviderConfig;
+  readonly provider: ServerProvider;
   readonly csrfCookieName?: string;
   readonly loginRedirectPath?: string;
   readonly featureCallbackPath?: string;
   readonly errorRedirectPath?: string;
+};
+
+export type ServerProvider = ProviderConfig & {
+  readonly clientSecret: string;
+  readonly callbackUrl: string;
 };
 
 export type OAuthHandlers = {
