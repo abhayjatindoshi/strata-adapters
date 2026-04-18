@@ -1,5 +1,6 @@
 import type { ProviderConfig } from './oauth-providers';
 import { exchangeCode, refreshAccessToken } from './oauth-providers';
+import { LOGIN_FEATURE } from './constants';
 import {
   generateState,
   parseState,
@@ -61,9 +62,10 @@ export function createOAuthHandlers(config: OAuthHandlersConfig): OAuthHandlers 
     const provider = lookup(url.searchParams.get('provider'));
     if (!provider) return errorResponse('Unknown or missing provider');
 
-    const feature = url.searchParams.get('feature') ?? 'login';
-    const scopes = provider.scopes[feature];
-    if (!scopes) return errorResponse(`Unsupported feature: ${feature}`);
+    const feature = url.searchParams.get('feature') ?? LOGIN_FEATURE;
+    const spec = provider.features[feature];
+    if (!spec) return errorResponse(`Unsupported feature: ${feature}`);
+    const scopes = spec.scopes;
 
     const state = generateState(provider.name, feature);
     const csrf = JSON.parse(atob(state)).csrf as string;
@@ -107,7 +109,7 @@ export function createOAuthHandlers(config: OAuthHandlersConfig): OAuthHandlers 
 
     const clearCsrf = setCookieHeader(csrfCookieName, '', 0);
 
-    if (state.feature !== 'login') {
+    if (state.feature !== LOGIN_FEATURE) {
       const fragment = new URLSearchParams({
         access_token: tokenResponse.access_token,
         refresh_token: tokenResponse.refresh_token || '',

@@ -1,4 +1,4 @@
-export type ScopeMap = Readonly<Record<string, readonly string[]>>;
+import type { FeatureMap } from './feature-spec';
 
 export type ProviderConfig = {
   readonly name: string;
@@ -8,7 +8,7 @@ export type ProviderConfig = {
   readonly clientId: string;
   readonly clientSecret?: string;
   readonly callbackUrl?: string;
-  readonly scopes: ScopeMap;
+  readonly features: FeatureMap;
 };
 
 export type OAuthTokenResponse = {
