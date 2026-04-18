@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react';
-import { combineLatest, distinctUntilChanged, map } from 'rxjs';
-import type { AuthAdapter, AuthState } from '@strata-adapters/auth/auth-adapter';
+import type { AuthState } from '@strata-adapters/auth/auth-adapter';
+import { AuthService } from '@strata-adapters/auth/auth-service';
+import { LOGIN_FEATURE } from '@strata-adapters/auth/constants';
 import type { StrataConfig } from '@strata-adapters/services/strata-config';
 import { createStrataInstance, type StrataInstance } from '@strata-adapters/services/strata-factory';
 import { StrataContext } from './context';
@@ -10,29 +11,17 @@ export type StrataProviderProps = {
   readonly children: ReactNode;
 };
 
-type Adapters = Readonly<Record<string, AuthAdapter>>;
-
-function buildAdapters(config: StrataConfig): Adapters {
-  const result: Record<string, AuthAdapter> = {};
-  for (const [name, reg] of Object.entries(config.providers)) {
-    result[name] = reg.auth();
-  }
-  return result;
-}
-
-function pickActiveState(states: readonly AuthState[], names: readonly string[]): AuthState {
-  for (let i = 0; i < states.length; i++) {
-    if (states[i].status === 'authenticated') {
-      return { status: 'authenticated', provider: states[i].provider ?? names[i] };
-    }
-  }
-  if (states.some((s) => s.status === 'loading')) return { status: 'loading' };
-  return { status: 'unauthenticated' };
-}
-
 export function StrataProvider({ config, children }: StrataProviderProps) {
-  const adapters = useMemo(() => buildAdapters(config), [config]);
-  const providerNames = useMemo(() => Object.keys(config.providers), [config]);
+  const authService = useMemo(
+    () =>
+      new AuthService({
+        providers: config.providers,
+        sessionKey: config.storageKeys.session,
+        returnUrlKey: config.storageKeys.returnUrl,
+        featureCredsKey: config.storageKeys.featureCreds,
+      }),
+    [config],
+  );
 
   const [authState, setAuthState] = useState<AuthState>({ status: 'loading' });
   const [instance, setInstance] = useState<StrataInstance | null>(null);
@@ -40,20 +29,14 @@ export function StrataProvider({ config, children }: StrataProviderProps) {
   const activeProviderRef = useRef<string | null>(null);
 
   useEffect(() => {
-    const streams = providerNames.map((n) => adapters[n].state$);
-    const sub = combineLatest(streams)
-      .pipe(
-        map((states) => pickActiveState(states, providerNames)),
-        distinctUntilChanged((a, b) => a.status === b.status && a.provider === b.provider),
-      )
-      .subscribe(setAuthState);
+    void authService.tryRestoreSession();
+    const sub = authService.state$.subscribe(setAuthState);
     return () => sub.unsubscribe();
-  }, [adapters, providerNames]);
+  }, [authService]);
 
   useEffect(() => {
     const isAuthed = authState.status === 'authenticated' && !!authState.provider;
     const next = isAuthed ? authState.provider! : null;
-
     if (next === activeProviderRef.current) return;
 
     if (instanceRef.current) {
@@ -66,16 +49,19 @@ export function StrataProvider({ config, children }: StrataProviderProps) {
 
     if (!next) return;
 
-    const reg = config.providers[next];
-    if (!reg?.cloud) {
+    const provider = config.providers.find((p) => p.name === next);
+    if (!provider?.cloud) {
       throw new Error(`Provider "${next}" has no cloud factory registered`);
+    }
+    if (!provider.features[LOGIN_FEATURE]) {
+      throw new Error(`Provider "${next}" is not a login provider`);
     }
 
     const inst = createStrataInstance({
-      auth: adapters[next],
-      cloud: reg.cloud,
+      auth: authService,
+      cloud: provider.cloud,
       appId: config.appId,
-      deviceIdKey: config.deviceIdKey,
+      deviceIdKey: config.storageKeys.deviceId,
       entities: config.entities,
       encryption: config.encryption,
       migrations: config.migrations,
@@ -84,7 +70,7 @@ export function StrataProvider({ config, children }: StrataProviderProps) {
     instanceRef.current = inst;
     activeProviderRef.current = next;
     setInstance(inst);
-  }, [authState, adapters, config]);
+  }, [authState, authService, config]);
 
   useEffect(() => {
     return () => {
@@ -94,16 +80,13 @@ export function StrataProvider({ config, children }: StrataProviderProps) {
     };
   }, []);
 
-  const activeAuth = authState.provider ? adapters[authState.provider] ?? null : null;
-
   return (
     <StrataContext.Provider
       value={{
         strata: instance?.strata ?? null,
         authState,
         errorBus: instance?.errorBus ?? null,
-        providers: providerNames,
-        auth: activeAuth,
+        authService,
       }}
     >
       {children}

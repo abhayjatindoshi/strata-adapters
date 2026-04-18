@@ -4,9 +4,7 @@ export type { CreateStrataInstanceConfig, StrataInstance } from './strata-factor
 export { defineStrata } from './strata-config';
 export type {
   StrataConfig,
-  ProviderRegistration,
-  AuthFactory,
-  CloudFactory,
+  StorageKeys,
   EncryptionConfig,
 } from './strata-config';
 export { createSyncStatus$, createDirtyState$ } from './sync-status';

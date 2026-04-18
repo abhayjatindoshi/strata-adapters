@@ -18,6 +18,7 @@ export { useStrata } from './hooks/use-strata';
 export { useAuth } from './hooks/use-auth';
 export { useProviders } from './hooks/use-providers';
 export { useLogin } from './hooks/use-login';
+export { useFeature } from './hooks/use-feature';
 export { useTenant, useTenantList } from './hooks/use-tenant';
 export { useSyncStatus, useDirtyState } from './hooks/use-sync-status';
 export { useStrataError } from './hooks/use-strata-error';

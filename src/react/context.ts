@@ -1,22 +1,21 @@
 import { createContext } from 'react';
 import type { Strata, Tenant } from 'strata-data-sync';
-import type { AuthAdapter, AuthState } from '@strata-adapters/auth/auth-adapter';
+import type { AuthState } from '@strata-adapters/auth/auth-adapter';
+import type { AuthService } from '@strata-adapters/auth/auth-service';
 import type { ErrorBus } from '@strata-adapters/errors/error-bus';
 
 export type StrataContextValue = {
   readonly strata: Strata | null;
   readonly authState: AuthState;
   readonly errorBus: ErrorBus | null;
-  readonly providers: readonly string[];
-  readonly auth: AuthAdapter | null;
+  readonly authService: AuthService | null;
 };
 
 export const StrataContext = createContext<StrataContextValue>({
   strata: null,
   authState: { status: 'loading' },
   errorBus: null,
-  providers: [],
-  auth: null,
+  authService: null,
 });
 
 export type TenantContextValue = {

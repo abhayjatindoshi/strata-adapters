@@ -3,27 +3,26 @@ import type {
   StrataOptions,
   BlobMigration,
   EncryptionService,
-  StorageAdapter,
 } from 'strata-data-sync';
-import type { AuthAdapter } from '@strata-adapters/auth/auth-adapter';
-
-export type AuthFactory = () => AuthAdapter;
-export type CloudFactory = (auth: AuthAdapter) => StorageAdapter;
-
-export type ProviderRegistration = {
-  readonly auth: AuthFactory;
-  readonly cloud?: CloudFactory;
-};
+import type { ProviderModule } from '@strata-adapters/auth/provider-module';
 
 export type EncryptionConfig =
   | EncryptionService
   | { readonly targets?: ReadonlyArray<'local' | 'cloud'> };
 
+/** Per-app session storage keys. The framework namespaces them by appId in Phase C. */
+export type StorageKeys = {
+  readonly deviceId: string;
+  readonly session: string;
+  readonly returnUrl: string;
+  readonly featureCreds: string;
+};
+
 export type StrataConfig = {
   readonly appId: string;
-  readonly deviceIdKey: string;
+  readonly storageKeys: StorageKeys;
   readonly entities: ReadonlyArray<EntityDefinition<any>>;
-  readonly providers: Readonly<Record<string, ProviderRegistration>>;
+  readonly providers: readonly ProviderModule[];
   readonly encryption?: EncryptionConfig;
   readonly migrations?: ReadonlyArray<BlobMigration>;
   readonly options?: StrataOptions;

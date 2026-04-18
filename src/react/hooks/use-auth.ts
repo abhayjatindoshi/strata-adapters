@@ -2,27 +2,22 @@ import { useCallback } from 'react';
 import { useStrata } from './use-strata';
 
 export function useAuth() {
-  const { authState, auth, providers } = useStrata();
+  const { authState, authService } = useStrata();
 
   const login = useCallback(
     (provider?: string) => {
-      const target = provider ?? providers[0];
+      if (!authService) throw new Error('AuthService not initialised');
+      const target = provider ?? authService.providers[0]?.name;
       if (!target) throw new Error('No providers registered');
-      const adapter = auth ?? null;
-      if (adapter) {
-        adapter.login(target);
-        return;
-      }
-      // Pre-auth: any registered adapter can drive login since they all share the OAuth redirect
-      window.location.href = `/api/auth/login?provider=${target}`;
+      authService.start(target);
     },
-    [auth, providers],
+    [authService],
   );
 
   const logout = useCallback(async () => {
-    if (!auth) return;
-    await auth.logout();
-  }, [auth]);
+    if (!authService) return;
+    await authService.logout();
+  }, [authService]);
 
   return { state: authState, login, logout };
 }

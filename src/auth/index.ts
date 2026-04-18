@@ -1,8 +1,9 @@
 export type { AuthAdapter, AuthState, AuthStatus } from './auth-adapter';
 export { AuthService } from './auth-service';
-export type { AuthServiceConfig, FeatureCreds } from './auth-service';
-export { createOAuthService } from './create-oauth-service';
-export type { CreateOAuthServiceConfig } from './create-oauth-service';
+export type { AuthServiceConfig } from './auth-service';
+export { FeatureHandle } from './feature-handle';
+export type { FeatureCreds, FeatureHandleConfig } from './feature-handle';
+export type { ProviderModule, CloudFactory } from './provider-module';
 export { createOAuthHandlers } from './oauth-handlers';
 export type { OAuthHandlersConfig, OAuthHandlers, ServerProvider, ProviderMap } from './oauth-handlers';
 export { exchangeCode, refreshAccessToken } from './oauth-providers';

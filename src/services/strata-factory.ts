@@ -14,7 +14,8 @@ import { Pbkdf2EncryptionService } from '@strata-adapters/encryption/pbkdf2-serv
 import { AesGcmEncryptionStrategy } from '@strata-adapters/encryption/strategy/aes-gcm-strategy';
 import { ErrorBus } from '@strata-adapters/errors/error-bus';
 import type { AuthAdapter } from '@strata-adapters/auth/auth-adapter';
-import type { CloudFactory, EncryptionConfig } from './strata-config';
+import type { CloudFactory } from '@strata-adapters/auth/provider-module';
+import type { EncryptionConfig } from './strata-config';
 import { getOrCreateDeviceId } from './device-id';
 
 export type CreateStrataInstanceConfig = {
