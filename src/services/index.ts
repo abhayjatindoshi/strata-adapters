@@ -1,7 +1,7 @@
 export { getOrCreateDeviceId } from './device-id';
 export { createStrataInstance } from './strata-factory';
 export type { CreateStrataInstanceConfig, StrataInstance } from './strata-factory';
-export { defineStrata } from './strata-config';
+export { defineStrata } from './define-strata';
 export type {
   StrataConfig,
   StorageKeys,

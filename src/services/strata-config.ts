@@ -10,7 +10,7 @@ export type EncryptionConfig =
   | EncryptionService
   | { readonly targets?: ReadonlyArray<'local' | 'cloud'> };
 
-/** Per-app session storage keys. The framework namespaces them by appId in Phase C. */
+/** Per-app browser-storage keys. `defineStrata` derives defaults from `appId`. */
 export type StorageKeys = {
   readonly deviceId: string;
   readonly session: string;
@@ -27,7 +27,3 @@ export type StrataConfig = {
   readonly migrations?: ReadonlyArray<BlobMigration>;
   readonly options?: StrataOptions;
 };
-
-export function defineStrata(config: StrataConfig): StrataConfig {
-  return config;
-}
