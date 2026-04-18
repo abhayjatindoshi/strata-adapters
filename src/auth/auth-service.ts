@@ -1,6 +1,7 @@
 import { BehaviorSubject, distinctUntilChanged, map, type Observable } from 'rxjs';
 import type { AuthAdapter, AuthState } from './auth-adapter';
 import type { ProviderModule } from './provider-module';
+import type { AuthStrategy } from './strategies/auth-strategy';
 import { FeatureHandle } from './feature-handle';
 import { LOGIN_FEATURE } from './constants';
 import { isSafeReturnUrl } from './oauth-utils';
@@ -14,6 +15,7 @@ type Session = { readonly provider: string; readonly accessToken: string; readon
 
 export type AuthServiceConfig = {
   readonly providers: readonly ProviderModule[];
+  readonly strategy: AuthStrategy;
   readonly sessionKey: string;
   readonly returnUrlKey: string;
   readonly featureCredsKey: string;
@@ -23,8 +25,8 @@ const REFRESH_LEEWAY_MS = 5 * 60 * 1000;
 
 /**
  * The single per-app auth service. Implements `AuthAdapter` (consumed by
- * cloud adapters via the active provider). App code uses the broader API
- * directly: provider list, login/logout, and per-feature handles.
+ * cloud adapters via the active provider). Delegates all OAuth plumbing to
+ * the injected `AuthStrategy` (BFF or PKCE).
  */
 export class AuthService implements AuthAdapter {
   private readonly internal$ = new BehaviorSubject<InternalState>({ status: 'loading' });
@@ -49,11 +51,11 @@ export class AuthService implements AuthAdapter {
     if (!this.findLoginProvider(providerName)) {
       throw new Error(`Unknown or non-login provider: ${providerName}`);
     }
-    window.location.href = `/api/auth/login?provider=${encodeURIComponent(providerName)}`;
+    this.config.strategy.startLogin(providerName);
   }
 
   async logout(): Promise<void> {
-    await fetch('/api/auth/logout', { method: 'POST' });
+    await this.config.strategy.logout();
     this.internal$.next({ status: 'unauthenticated' });
     sessionStorage.removeItem(this.config.sessionKey);
   }
@@ -68,24 +70,18 @@ export class AuthService implements AuthAdapter {
 
   /** Refresh the active login token. */
   async refresh(): Promise<string | null> {
-    try {
-      const response = await fetch('/api/auth/refresh', { method: 'POST' });
-      if (!response.ok) {
-        this.internal$.next({ status: 'unauthenticated' });
-        return null;
-      }
-      const data = (await response.json()) as { access_token: string; expires_in: number; provider: string };
-      const expiresAt = Date.now() + data.expires_in * 1000;
-      this.internal$.next({ status: 'authenticated', provider: data.provider, accessToken: data.access_token, expiresAt });
-      this.saveSession({ provider: data.provider, accessToken: data.access_token, expiresAt });
-      return data.access_token;
-    } catch {
+    const result = await this.config.strategy.refreshLogin();
+    if (!result) {
       this.internal$.next({ status: 'unauthenticated' });
       return null;
     }
+    const expiresAt = Date.now() + result.expiresIn * 1000;
+    this.internal$.next({ status: 'authenticated', provider: result.provider, accessToken: result.accessToken, expiresAt });
+    this.saveSession({ provider: result.provider, accessToken: result.accessToken, expiresAt });
+    return result.accessToken;
   }
 
-  /** Hydrate from sessionStorage; falls back to cookie-based refresh. */
+  /** Hydrate from sessionStorage; falls back to a strategy refresh. */
   async tryRestoreSession(): Promise<void> {
     const cached = this.loadSession();
     if (cached && cached.expiresAt - Date.now() > REFRESH_LEEWAY_MS) {
@@ -108,6 +104,7 @@ export class AuthService implements AuthAdapter {
       feature,
       storageKey: this.config.featureCredsKey,
       returnUrlKey: this.config.returnUrlKey,
+      strategy: this.config.strategy,
     });
   }
 

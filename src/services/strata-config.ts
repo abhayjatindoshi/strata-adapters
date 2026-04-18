@@ -5,6 +5,7 @@ import type {
   EncryptionService,
 } from 'strata-data-sync';
 import type { ProviderModule } from '@strata-adapters/auth/provider-module';
+import type { AuthStrategy } from '@strata-adapters/auth/strategies/auth-strategy';
 
 export type EncryptionConfig =
   | EncryptionService
@@ -23,6 +24,7 @@ export type StrataConfig = {
   readonly storageKeys: StorageKeys;
   readonly entities: ReadonlyArray<EntityDefinition<any>>;
   readonly providers: readonly ProviderModule[];
+  readonly strategy: AuthStrategy;
   readonly encryption?: EncryptionConfig;
   readonly migrations?: ReadonlyArray<BlobMigration>;
   readonly options?: StrataOptions;

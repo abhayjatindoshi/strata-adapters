@@ -3,10 +3,15 @@ import type { ProviderDefinition } from '@strata-adapters/auth/define-provider';
 import type { AuthAdapter } from '@strata-adapters/auth/auth-adapter';
 import type { ProviderModule } from '@strata-adapters/auth/provider-module';
 import type { StorageAdapter } from 'strata-data-sync';
+import type { AuthStrategy } from '@strata-adapters/auth/strategies/auth-strategy';
+import type { SecretStore } from '@strata-adapters/auth/secret-store';
+import { BffStrategy } from '@strata-adapters/auth/strategies/bff-strategy';
+import { PkceStrategy } from '@strata-adapters/auth/strategies/pkce-strategy';
 import type { StrataConfig, EncryptionConfig, StorageKeys } from './strata-config';
 
 type AuthChoice =
   | { readonly kind: 'bff'; readonly providers: readonly ProviderDefinition[] }
+  | { readonly kind: 'pkce'; readonly providers: readonly ProviderDefinition[]; readonly secretStore: SecretStore }
   | { readonly kind: 'custom'; readonly adapter: AuthAdapter; readonly cloud: StorageAdapter | null }
   | { readonly kind: 'none' };
 
@@ -40,12 +45,13 @@ class FinalBuilder {
 
   build(): StrataConfig {
     if (!this.state.entities) throw new Error('defineStrata: missing .entities([...])');
-    if (!this.state.auth) throw new Error('defineStrata: missing .auth.{bff|custom|none}(...)');
+    if (!this.state.auth) throw new Error('defineStrata: missing .auth.{bff|pkce|custom|none}(...)');
     if (!this.state.storage) throw new Error('defineStrata: missing .storage.{fromProvider|custom|local}()');
 
     validateCombination(this.state.auth, this.state.storage);
 
     const providers = providersForConfig(this.state.auth);
+    const strategy = strategyFor(this.state.auth);
     const storageKeys = resolveStorageKeys(this.state.appId, this.state.extras?.storageKeys);
 
     return {
@@ -53,6 +59,7 @@ class FinalBuilder {
       storageKeys,
       entities: this.state.entities,
       providers,
+      strategy,
       encryption: this.state.extras?.encryption,
       migrations: this.state.extras?.migrations,
       options: this.state.extras?.options,
@@ -88,6 +95,12 @@ class AuthChooser {
     return { storage: new StorageChooser(this.state) };
   }
 
+  /** Client-only login (PKCE). Requires an app-supplied `SecretStore`. (Phase E — currently throws.) */
+  pkce(providers: readonly ProviderDefinition[], opts: { readonly secretStore: SecretStore }): { storage: StorageChooser } {
+    this.state.auth = { kind: 'pkce', providers, secretStore: opts.secretStore };
+    return { storage: new StorageChooser(this.state) };
+  }
+
   /** Bring-your-own auth (Firebase, Auth0, in-house). */
   custom(adapter: AuthAdapter, opts?: { readonly cloud?: StorageAdapter }): { storage: StorageChooser } {
     this.state.auth = { kind: 'custom', adapter, cloud: opts?.cloud ?? null };
@@ -116,13 +129,20 @@ export function defineStrata(appId: string): EntitiesChooser {
 }
 
 function providersForConfig(auth: AuthChoice): readonly ProviderModule[] {
-  if (auth.kind === 'bff') return auth.providers;
+  if (auth.kind === 'bff' || auth.kind === 'pkce') return auth.providers;
   return [];
 }
 
+function strategyFor(auth: AuthChoice): AuthStrategy {
+  if (auth.kind === 'bff') return new BffStrategy();
+  if (auth.kind === 'pkce') return new PkceStrategy({ providers: auth.providers, secretStore: auth.secretStore });
+  // custom + none don't use AuthService for OAuth flows; provide a no-op strategy.
+  return new BffStrategy();
+}
+
 function validateCombination(auth: AuthChoice, storage: StorageChoice): void {
-  if (storage.kind === 'fromProvider' && auth.kind !== 'bff') {
-    throw new Error('.storage.fromProvider() requires .auth.bff(...) (PKCE deferred). Use .storage.custom() or .storage.local() with .auth.custom()/.none().');
+  if (storage.kind === 'fromProvider' && auth.kind !== 'bff' && auth.kind !== 'pkce') {
+    throw new Error('.storage.fromProvider() requires .auth.bff(...) or .auth.pkce(...). Use .storage.custom() or .storage.local() with .auth.custom()/.none().');
   }
 }
 

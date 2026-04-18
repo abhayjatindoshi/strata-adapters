@@ -1,3 +1,5 @@
+import type { AuthStrategy } from './strategies/auth-strategy';
+
 /** Credentials produced by an OAuth feature grant (non-login). */
 export type FeatureCreds = {
   readonly provider: string;
@@ -13,6 +15,7 @@ export type FeatureHandleConfig = {
   readonly feature: string;
   readonly storageKey: string;
   readonly returnUrlKey: string;
+  readonly strategy: AuthStrategy;
 };
 
 /**
@@ -27,8 +30,7 @@ export class FeatureHandle {
   start(opts?: { readonly returnUrl?: string }): void {
     const returnUrl = opts?.returnUrl ?? window.location.pathname + window.location.search;
     sessionStorage.setItem(this.config.returnUrlKey, returnUrl);
-    const params = new URLSearchParams({ provider: this.config.provider, feature: this.config.feature });
-    window.location.href = `/api/auth/feature/login?${params.toString()}`;
+    this.config.strategy.startFeature(this.config.provider, this.config.feature);
   }
 
   /** Called by the OAuth callback page to stash creds for the consumer. */
@@ -50,31 +52,17 @@ export class FeatureHandle {
   }
 
   async refresh(refreshToken: string): Promise<FeatureCreds | null> {
-    const response = await fetch('/api/auth/feature/refresh', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ provider: this.config.provider, refresh_token: refreshToken }),
-    });
-    if (!response.ok) return null;
-    const data = (await response.json()) as { access_token: string; refresh_token: string; expires_in: number };
-    return {
-      provider: this.config.provider,
-      feature: this.config.feature,
-      accessToken: data.access_token,
-      refreshToken: data.refresh_token,
-      expiresIn: data.expires_in,
-    };
+    const result = await this.config.strategy.refreshFeature(this.config.provider, refreshToken);
+    if (!result) return null;
+    return { ...result, feature: this.config.feature };
   }
 
   async revoke(token: string): Promise<void> {
-    await fetch('/api/auth/feature/revoke', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ provider: this.config.provider, token }),
-    });
+    await this.config.strategy.revokeFeature(this.config.provider, token);
   }
 
   private storageKey(): string {
     return `${this.config.storageKey}:${this.config.provider}:${this.config.feature}`;
   }
 }
+

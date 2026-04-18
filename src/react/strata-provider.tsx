@@ -16,6 +16,7 @@ export function StrataProvider({ config, children }: StrataProviderProps) {
     () =>
       new AuthService({
         providers: config.providers,
+        strategy: config.strategy,
         sessionKey: config.storageKeys.session,
         returnUrlKey: config.storageKeys.returnUrl,
         featureCredsKey: config.storageKeys.featureCreds,
