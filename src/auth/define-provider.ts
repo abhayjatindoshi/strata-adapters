@@ -1,13 +1,11 @@
 import type { CloudFactory, ProviderModule } from './provider-module';
 import type { FeatureSpec, FeatureMap } from './feature-spec';
-import type { ProviderBrand } from './provider-brand';
 import { LOGIN_FEATURE } from './constants';
 import {
   GOOGLE_OAUTH_ENDPOINTS,
   GOOGLE_DEFAULT_FEATURES,
   GOOGLE_CLOUD_FACTORY,
 } from '@strata-adapters/providers/google/google-definition';
-import { GOOGLE_BRAND } from '@strata-adapters/providers/google/google-brand';
 
 /**
  * Generic OAuth endpoint shape used by `.oauth(...)` for non-bundled providers.
@@ -46,7 +44,6 @@ type State = {
   features: FeatureMap;
   cloud?: CloudFactory;
   label?: string;
-  brand?: ProviderBrand;
 };
 
 class CompletedBuilder {
@@ -76,12 +73,6 @@ class CompletedBuilder {
     return this;
   }
 
-  /** Override the brand used by <LoginButton>. */
-  brand(brand: ProviderBrand): CompletedBuilder {
-    this.state.brand = brand;
-    return this;
-  }
-
   label(text: string): CompletedBuilder {
     this.state.label = text;
     return this;
@@ -106,7 +97,6 @@ class CompletedBuilder {
       label: this.state.label ?? humanize(this.state.name),
       features: this.state.features,
       cloud: this.state.cloud,
-      brand: this.state.brand,
       endpoints: this.state.endpoints,
     };
   }
@@ -115,16 +105,15 @@ class CompletedBuilder {
 class TypeChooser {
   constructor(private readonly state: State) {}
 
-  /** Use the bundled Google Drive provider — pre-filled OAuth + default scopes + Drive cloud + brand. */
+  /** Use the bundled Google Drive provider — pre-filled OAuth + default scopes + Drive cloud. */
   google(): CompletedBuilder {
     this.state.endpoints = GOOGLE_OAUTH_ENDPOINTS;
     this.state.features = { ...GOOGLE_DEFAULT_FEATURES };
     this.state.cloud = GOOGLE_CLOUD_FACTORY;
-    this.state.brand = GOOGLE_BRAND;
     return new CompletedBuilder(this.state);
   }
 
-  /** Custom OAuth provider — app supplies endpoints. No default scopes, cloud, or brand. */
+  /** Custom OAuth provider — app supplies endpoints. No default scopes or cloud. */
   oauth(endpoints: OAuthEndpoints): CompletedBuilder {
     this.state.endpoints = endpoints;
     return new CompletedBuilder(this.state);

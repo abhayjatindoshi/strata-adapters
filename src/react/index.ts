@@ -15,11 +15,12 @@ export type { TenantGuardProps } from './guards/tenant-guard';
 
 // Components
 export { LoginButton } from './components/login-button';
-export type { LoginButtonProps } from './components/login-button';
-export { LoginButtons } from './components/login-buttons';
-export type { LoginButtonsProps } from './components/login-buttons';
-export type { LoginButtonTheme, LoginButtonBaseProps } from './components/provider-brand';
-export type { ProviderBrand } from '@strata-adapters/auth/provider-brand';
+export type {
+  LoginButtonProps,
+  LoginButtonBaseProps,
+  LoginButtonTheme,
+  LoginButtonVariant,
+} from './components/login-button';
 
 // Core hooks
 export { useStrata } from './hooks/use-strata';

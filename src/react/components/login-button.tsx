@@ -1,85 +1,49 @@
-import type { CSSProperties } from 'react';
-import { useAuth } from '../hooks/use-auth';
-import { useProviders } from '../hooks/use-providers';
-import { resolveBrand, type LoginButtonBaseProps } from './provider-brand';
-import { LOGIN_FEATURE } from '@strata-adapters/auth/constants';
+import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import { GoogleLoginButton } from '@strata-adapters/providers/google/google-login-button';
 
-export type LoginButtonProps = LoginButtonBaseProps & {
-  /** Provider name to log in with. Defaults to the first registered login provider. */
-  readonly provider?: string;
+export type LoginButtonTheme = 'light' | 'dark';
+export type LoginButtonVariant = 'pill' | 'icon';
+
+/**
+ * Props shared by `<LoginButton>` and every provider-branded button
+ * (e.g. `<GoogleLoginButton>`). Brand buttons own their own visual
+ * treatment — there is no generic fallback style.
+ */
+export type LoginButtonBaseProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> & {
+  /** Visual theme. Default: light. */
+  readonly theme?: LoginButtonTheme;
+  /** Visual variant. Default: pill. */
+  readonly variant?: LoginButtonVariant;
+  /** Custom button content. Overrides the default brand label. */
+  readonly children?: ReactNode;
 };
 
-const DEFAULT_STYLE_BASE: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  gap: '10px',
-  height: '40px',
-  padding: '0 16px',
-  borderRadius: '4px',
-  fontFamily: 'Roboto, "Helvetica Neue", Arial, sans-serif',
-  fontWeight: 500,
-  fontSize: '14px',
-  cursor: 'pointer',
-  width: '100%',
+export type LoginButtonProps = LoginButtonBaseProps & {
+  /** Provider to log in with. Must be a provider this package ships a branded button for. */
+  readonly provider: 'google';
 };
 
 /**
- * Brand-correct login button. One-liner for the common case:
+ * UI-only dispatcher that renders the correct brand-conformant button
+ * for the requested provider. All other props (`theme`, `variant`,
+ * `disabled`, `onClick`, `children`, …) pass straight through.
  *
  * ```tsx
- * <LoginButton />              // single-provider app
- * <LoginButton provider="google" theme="dark" />
+ * <LoginButton provider="google" />
+ * <LoginButton provider="google" theme="dark" variant="icon" />
  * ```
  *
- * Consumers who want their own styles can pass `unstyled` + `className`:
- * ```tsx
- * <LoginButton unstyled className="my-btn">Sign in</LoginButton>
- * ```
+ * For unknown providers this throws at render — add a new brand component
+ * and extend the `provider` union instead of degrading at runtime.
  */
-export function LoginButton({
-  provider,
-  theme = 'light',
-  style,
-  children,
-  disabled,
-  unstyled = false,
-  ...rest
-}: LoginButtonProps) {
-  const { state, login } = useAuth();
-  const providers = useProviders();
-
-  const target = provider ?? providers.find((p) => p.features[LOGIN_FEATURE])?.name;
-  const providerModule = target ? providers.find((p) => p.name === target) : undefined;
-  const brand = resolveBrand(providerModule);
-  const busy = state.status === 'loading' || !target;
-
-  const themeStyle = brand.themes[theme];
-  const mergedStyle: CSSProperties = unstyled
-    ? (style ?? {})
-    : {
-        ...DEFAULT_STYLE_BASE,
-        background: themeStyle.background,
-        color: themeStyle.color,
-        border: themeStyle.border,
-        opacity: disabled || busy ? 0.6 : 1,
-        ...style,
-      };
-
-  return (
-    <button
-      type="button"
-      disabled={disabled || busy}
-      style={mergedStyle}
-      onClick={() => target && login(target)}
-      {...rest}
-    >
-      {children ?? (
-        <>
-          {brand.icon}
-          <span>{brand.label}</span>
-        </>
-      )}
-    </button>
-  );
+export function LoginButton({ provider, ...rest }: LoginButtonProps) {
+  switch (provider) {
+    case 'google':
+      return <GoogleLoginButton {...rest} />;
+    default: {
+      const exhaustive: never = provider;
+      throw new Error(`<LoginButton> has no branded component for provider: ${String(exhaustive)}`);
+    }
+  }
 }
+

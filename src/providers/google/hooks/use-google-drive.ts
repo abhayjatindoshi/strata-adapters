@@ -1,6 +1,5 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback } from 'react';
 import type { Tenant, CreateTenantOptions, JoinTenantOptions } from 'strata-data-sync';
-import { GoogleDriveBrowser, type DriveFile } from '../google-drive-browser';
 import { validateGoogleDriveMeta, type GoogleDriveSpace } from '../google-tenant-meta';
 import { useStrata } from '@strata-adapters/react/hooks/use-strata';
 
@@ -186,93 +185,4 @@ export function useGoogleOpenForm(): {
   }, []);
 
   return { state, setFolder, setSpace, submit, reset };
-}
-
-// --- Google File Browser ---
-
-export type GoogleFileBrowserState = {
-  readonly files: ReadonlyArray<DriveFile>;
-  readonly currentFolderId: string;
-  readonly breadcrumbs: ReadonlyArray<{ id: string; name: string }>;
-  readonly loading: boolean;
-  readonly error: Error | null;
-};
-
-export function useGoogleFileBrowser(
-  getAccessToken: () => Promise<string>,
-  rootFolderId: string = 'root',
-): {
-  readonly state: GoogleFileBrowserState;
-  readonly navigateTo: (folderId: string, folderName: string) => void;
-  readonly navigateUp: () => void;
-  readonly createFolder: (name: string) => Promise<DriveFile>;
-  readonly refresh: () => void;
-} {
-  const browser = useMemo(() => new GoogleDriveBrowser(getAccessToken), [getAccessToken]);
-  const [state, setState] = useState<GoogleFileBrowserState>({
-    files: [],
-    currentFolderId: rootFolderId,
-    breadcrumbs: [{ id: rootFolderId, name: 'My Drive' }],
-    loading: false,
-    error: null,
-  });
-
-  const loadFiles = useCallback(
-    async (folderId: string) => {
-      setState((s) => ({ ...s, loading: true, error: null }));
-      try {
-        const files = await browser.listFiles(folderId);
-        setState((s) => ({ ...s, files, loading: false }));
-      } catch (err) {
-        setState((s) => ({
-          ...s,
-          files: [],
-          loading: false,
-          error: err instanceof Error ? err : new Error(String(err)),
-        }));
-      }
-    },
-    [browser],
-  );
-
-  const navigateTo = useCallback(
-    (folderId: string, folderName: string) => {
-      setState((s) => ({
-        ...s,
-        currentFolderId: folderId,
-        breadcrumbs: [...s.breadcrumbs, { id: folderId, name: folderName }],
-      }));
-      loadFiles(folderId);
-    },
-    [loadFiles],
-  );
-
-  const navigateUp = useCallback(() => {
-    setState((s) => {
-      if (s.breadcrumbs.length <= 1) return s;
-      const newBreadcrumbs = s.breadcrumbs.slice(0, -1);
-      const parentId = newBreadcrumbs[newBreadcrumbs.length - 1].id;
-      loadFiles(parentId);
-      return {
-        ...s,
-        currentFolderId: parentId,
-        breadcrumbs: newBreadcrumbs,
-      };
-    });
-  }, [loadFiles]);
-
-  const createFolder = useCallback(
-    async (name: string) => {
-      const folder = await browser.createFolder(name, state.currentFolderId);
-      await loadFiles(state.currentFolderId);
-      return folder;
-    },
-    [browser, state.currentFolderId, loadFiles],
-  );
-
-  const refresh = useCallback(() => {
-    loadFiles(state.currentFolderId);
-  }, [loadFiles, state.currentFolderId]);
-
-  return { state, navigateTo, navigateUp, createFolder, refresh };
 }

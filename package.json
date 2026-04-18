@@ -24,6 +24,10 @@
       "types": "./dist/react/index.d.ts",
       "import": "./dist/react/index.js"
     },
+    "./cloud": {
+      "types": "./dist/cloud/index.d.ts",
+      "import": "./dist/cloud/index.js"
+    },
     "./providers/google": {
       "types": "./dist/providers/google/index.d.ts",
       "import": "./dist/providers/google/index.js"
