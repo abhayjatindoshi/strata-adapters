@@ -13,6 +13,13 @@ export type { AuthGuardProps } from './guards/auth-guard';
 export { TenantGuard } from './guards/tenant-guard';
 export type { TenantGuardProps } from './guards/tenant-guard';
 
+// Components
+export { LoginButton } from './components/login-button';
+export type { LoginButtonProps } from './components/login-button';
+export { LoginButtons } from './components/login-buttons';
+export type { LoginButtonsProps } from './components/login-buttons';
+export type { LoginButtonTheme, LoginButtonBaseProps, ProviderBrand } from './components/provider-brand';
+
 // Core hooks
 export { useStrata } from './hooks/use-strata';
 export { useAuth } from './hooks/use-auth';
