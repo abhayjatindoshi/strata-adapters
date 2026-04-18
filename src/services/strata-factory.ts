@@ -1,14 +1,12 @@
 import {
   Strata,
-  type StrataConfig,
+  type StrataConfig as CoreStrataConfig,
   type EntityDefinition,
   type StrataOptions,
   type BlobMigration,
   type EncryptionService,
-  type StorageAdapter,
 } from 'strata-data-sync';
 import { LocalStorageAdapter } from '@strata-adapters/adapters/local-storage/local-storage';
-import { GoogleDriveAdapter } from '@strata-adapters/adapters/google-drive/google-drive';
 import { withGzip } from '@strata-adapters/transforms/gzip';
 import { withRetry } from '@strata-adapters/transforms/retry';
 import { withErrorBroadcast } from '@strata-adapters/transforms/error-broadcast';
@@ -16,19 +14,16 @@ import { Pbkdf2EncryptionService } from '@strata-adapters/encryption/pbkdf2-serv
 import { AesGcmEncryptionStrategy } from '@strata-adapters/encryption/strategy/aes-gcm-strategy';
 import { ErrorBus } from '@strata-adapters/errors/error-bus';
 import type { AuthAdapter } from '@strata-adapters/auth/auth-adapter';
+import type { CloudFactory, EncryptionConfig } from './strata-config';
 import { getOrCreateDeviceId } from './device-id';
 
-export type CloudProvider = 'google-drive';
-
-export type StrataInitConfig = {
+export type CreateStrataInstanceConfig = {
   readonly auth: AuthAdapter;
+  readonly cloud: CloudFactory;
   readonly appId: string;
   readonly deviceIdKey: string;
   readonly entities: ReadonlyArray<EntityDefinition<any>>;
-  readonly cloudProvider: CloudProvider;
-  readonly encryption?: {
-    readonly targets?: ReadonlyArray<'local' | 'cloud'>;
-  } | EncryptionService;
+  readonly encryption?: EncryptionConfig;
   readonly migrations?: ReadonlyArray<BlobMigration>;
   readonly options?: StrataOptions;
 };
@@ -49,49 +44,26 @@ function isEncryptionService(value: unknown): value is EncryptionService {
   );
 }
 
-function createCloudAdapter(
-  provider: CloudProvider,
-  auth: AuthAdapter,
-  errorBus: ErrorBus,
-): StorageAdapter {
-  const getToken = async () => {
-    const token = await auth.getAccessToken();
-    if (!token) throw new Error('No access token available');
-    return token;
-  };
-
-  let adapter: StorageAdapter;
-  switch (provider) {
-    case 'google-drive':
-      adapter = new GoogleDriveAdapter(getToken);
-      break;
-  }
-
-  return withErrorBroadcast(withGzip(withRetry(adapter)), errorBus);
-}
-
-function createEncryptionService(
-  config: StrataInitConfig['encryption'],
-): EncryptionService | undefined {
+function buildEncryption(config: EncryptionConfig | undefined): EncryptionService | undefined {
   if (!config) return undefined;
   if (isEncryptionService(config)) return config;
-
   return new Pbkdf2EncryptionService({
     targets: config.targets ?? ['cloud'],
     strategy: new AesGcmEncryptionStrategy(),
   });
 }
 
-export function createStrataInstance(config: StrataInitConfig): StrataInstance {
-  const { auth, appId, deviceIdKey, entities, cloudProvider, encryption, migrations, options } = config;
+export function createStrataInstance(config: CreateStrataInstanceConfig): StrataInstance {
+  const { auth, cloud, appId, deviceIdKey, entities, encryption, migrations, options } = config;
 
   const deviceId = getOrCreateDeviceId(deviceIdKey);
-  const localAdapter = new LocalStorageAdapter(appId);
   const errorBus = new ErrorBus();
-  const cloudAdapter = createCloudAdapter(cloudProvider, auth, errorBus);
-  const encryptionService = createEncryptionService(encryption);
+  const localAdapter = new LocalStorageAdapter(appId);
+  const rawCloud = cloud(auth);
+  const cloudAdapter = withErrorBroadcast(withGzip(withRetry(rawCloud)), errorBus);
+  const encryptionService = buildEncryption(encryption);
 
-  const strataConfig: StrataConfig = {
+  const coreConfig: CoreStrataConfig = {
     appId,
     entities,
     localAdapter,
@@ -102,7 +74,7 @@ export function createStrataInstance(config: StrataInitConfig): StrataInstance {
     options,
   };
 
-  const strata = new Strata(strataConfig);
+  const strata = new Strata(coreConfig);
 
   const dispose = async () => {
     await strata.dispose();

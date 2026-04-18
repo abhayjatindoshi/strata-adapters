@@ -1,12 +1,12 @@
-export type { AuthAdapter, AuthState } from './auth-adapter';
+export type { AuthAdapter, AuthState, AuthStatus } from './auth-adapter';
 export { AuthService } from './auth-service';
-export type { AuthServiceState, AuthServiceConfig, FeatureCreds } from './auth-service';
-export { initAuth } from './init-auth';
-export type { AuthInitConfig, AuthInit } from './init-auth';
+export type { AuthServiceConfig, FeatureCreds } from './auth-service';
+export { createOAuthService } from './create-oauth-service';
+export type { CreateOAuthServiceConfig } from './create-oauth-service';
 export { createOAuthHandlers } from './oauth-handlers';
-export type { OAuthHandlersConfig, OAuthHandlers, ServerProvider } from './oauth-handlers';
+export type { OAuthHandlersConfig, OAuthHandlers, ServerProvider, ProviderMap } from './oauth-handlers';
 export { exchangeCode, refreshAccessToken } from './oauth-providers';
-export type { OAuthTokenResponse, ScopeMap, ProviderInfo, ProviderConfig } from './oauth-providers';
+export type { OAuthTokenResponse, ScopeMap, ProviderConfig } from './oauth-providers';
 export {
   generateState,
   parseState,

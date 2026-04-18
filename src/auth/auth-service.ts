@@ -1,11 +1,8 @@
-import { BehaviorSubject, map } from 'rxjs';
+import { BehaviorSubject, distinctUntilChanged, map } from 'rxjs';
 import type { AuthAdapter, AuthState } from './auth-adapter';
-import type { ProviderInfo } from './oauth-providers';
 import { isSafeReturnUrl } from './oauth-utils';
 
-export type AuthServiceState = {
-  readonly status: 'loading' | 'authenticated' | 'unauthenticated';
-  readonly provider?: string;
+type InternalState = AuthState & {
   readonly accessToken?: string;
   readonly expiresAt?: number;
 };
@@ -20,30 +17,33 @@ export type FeatureCreds = {
 };
 
 export type AuthServiceConfig = {
+  readonly providerName: string;
   readonly sessionKey: string;
   readonly returnUrlKey: string;
   readonly featureCredsKey?: string;
-  readonly providers?: readonly ProviderInfo[];
 };
 
-export class AuthService {
-  private readonly authState$ = new BehaviorSubject<AuthServiceState>({ status: 'loading' });
+export class AuthService implements AuthAdapter {
+  private readonly internal$ = new BehaviorSubject<InternalState>({ status: 'loading' });
   private readonly config: AuthServiceConfig;
 
-  readonly state$ = this.authState$.asObservable();
-  readonly providers: readonly ProviderInfo[];
+  readonly state$ = this.internal$.pipe(
+    map(({ status, provider }): AuthState => ({ status, provider })),
+    distinctUntilChanged((a, b) => a.status === b.status && a.provider === b.provider),
+  );
 
   constructor(config: AuthServiceConfig) {
     this.config = config;
-    this.providers = config.providers ?? [];
   }
 
-  getState(): AuthServiceState {
-    return this.authState$.getValue();
+  getState(): AuthState {
+    const { status, provider } = this.internal$.getValue();
+    return { status, provider };
   }
 
-  login(provider: string) {
-    window.location.href = `/api/auth/login?provider=${provider}`;
+  login(provider?: string) {
+    const name = provider ?? this.config.providerName;
+    window.location.href = `/api/auth/login?provider=${name}`;
   }
 
   async refresh(): Promise<string | null> {
@@ -51,14 +51,14 @@ export class AuthService {
       const response = await fetch('/api/auth/refresh', { method: 'POST' });
 
       if (!response.ok) {
-        this.authState$.next({ status: 'unauthenticated' });
+        this.internal$.next({ status: 'unauthenticated' });
         return null;
       }
 
       const data = await response.json() as { access_token: string; expires_in: number; provider: string };
       const expiresAt = Date.now() + data.expires_in * 1000;
 
-      this.authState$.next({
+      this.internal$.next({
         status: 'authenticated',
         provider: data.provider,
         accessToken: data.access_token,
@@ -68,33 +68,28 @@ export class AuthService {
       this.saveSession(data.provider, data.access_token, expiresAt);
       return data.access_token;
     } catch {
-      this.authState$.next({ status: 'unauthenticated' });
+      this.internal$.next({ status: 'unauthenticated' });
       return null;
     }
   }
 
   async getAccessToken(): Promise<string | null> {
-    const state = this.authState$.getValue();
-
+    const state = this.internal$.getValue();
     if (!state.accessToken || !state.expiresAt) return null;
-
-    if (state.expiresAt - Date.now() < 5 * 60 * 1000) {
-      return this.refresh();
-    }
-
+    if (state.expiresAt - Date.now() < 5 * 60 * 1000) return this.refresh();
     return state.accessToken;
   }
 
   async logout() {
     await fetch('/api/auth/logout', { method: 'POST' });
-    this.authState$.next({ status: 'unauthenticated' });
+    this.internal$.next({ status: 'unauthenticated' });
     this.clearSession();
   }
 
   async tryRestoreSession() {
     const cached = this.loadSession();
     if (cached && cached.expiresAt - Date.now() > 5 * 60 * 1000) {
-      this.authState$.next({
+      this.internal$.next({
         status: 'authenticated',
         provider: cached.provider,
         accessToken: cached.accessToken,
@@ -102,7 +97,6 @@ export class AuthService {
       });
       return;
     }
-
     await this.refresh();
   }
 
@@ -174,15 +168,6 @@ export class AuthService {
     sessionStorage.removeItem(this.config.returnUrlKey);
     if (!url || !isSafeReturnUrl(url)) return '/';
     return url;
-  }
-
-  // --- Auth adapter bridge ---
-
-  toAuthAdapter(): AuthAdapter {
-    return {
-      state$: this.authState$.pipe(map(s => s.status)),
-      getAccessToken: () => this.getAccessToken(),
-    };
   }
 
   // --- Private helpers ---

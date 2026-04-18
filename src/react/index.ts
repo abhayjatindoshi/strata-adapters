@@ -7,14 +7,17 @@ export type { TenantProviderProps } from './tenant-provider';
 // Context
 export type { StrataContextValue, TenantContextValue } from './context';
 
-// Guards
-export { RequireAuth } from './guards/require-auth';
-export type { RequireAuthProps } from './guards/require-auth';
-export { RequireTenant } from './guards/require-tenant';
-export type { RequireTenantProps } from './guards/require-tenant';
+// Guards (layout-route)
+export { AuthGuard } from './guards/auth-guard';
+export type { AuthGuardProps } from './guards/auth-guard';
+export { TenantGuard } from './guards/tenant-guard';
+export type { TenantGuardProps } from './guards/tenant-guard';
 
 // Core hooks
 export { useStrata } from './hooks/use-strata';
+export { useAuth } from './hooks/use-auth';
+export { useProviders } from './hooks/use-providers';
+export { useLogin } from './hooks/use-login';
 export { useTenant, useTenantList } from './hooks/use-tenant';
 export { useSyncStatus, useDirtyState } from './hooks/use-sync-status';
 export { useStrataError } from './hooks/use-strata-error';

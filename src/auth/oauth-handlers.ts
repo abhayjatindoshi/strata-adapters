@@ -12,18 +12,20 @@ import {
   decodeRefreshCookie,
 } from './oauth-utils';
 
+export type ServerProvider = ProviderConfig & {
+  readonly clientSecret: string;
+  readonly callbackUrl: string;
+};
+
+export type ProviderMap = Readonly<Record<string, ServerProvider>>;
+
 export type OAuthHandlersConfig = {
   readonly cookieName: string;
-  readonly provider: ServerProvider;
+  readonly providers: ProviderMap;
   readonly csrfCookieName?: string;
   readonly loginRedirectPath?: string;
   readonly featureCallbackPath?: string;
   readonly errorRedirectPath?: string;
-};
-
-export type ServerProvider = ProviderConfig & {
-  readonly clientSecret: string;
-  readonly callbackUrl: string;
 };
 
 export type OAuthHandlers = {
@@ -36,31 +38,34 @@ export type OAuthHandlers = {
 };
 
 const CSRF_MAX_AGE = 600; // 10 minutes
+const REFRESH_MAX_AGE = 60 * 60 * 24 * 365; // 1 year
 
 export function createOAuthHandlers(config: OAuthHandlersConfig): OAuthHandlers {
   const {
     cookieName,
-    provider,
+    providers,
     csrfCookieName = 'oauth_csrf',
     loginRedirectPath = '/',
     featureCallbackPath = '/auth/feature/callback',
     errorRedirectPath = '/login?error=auth_failed',
   } = config;
 
-  function redirect(path: string): Response {
-    return new Response(null, { status: 302, headers: { Location: path } });
-  }
+  const lookup = (name: string | null | undefined): ServerProvider | undefined =>
+    name ? providers[name] : undefined;
+
+  const redirect = (path: string): Response =>
+    new Response(null, { status: 302, headers: { Location: path } });
 
   async function handleLogin(request: Request): Promise<Response> {
     const url = new URL(request.url);
-    const providerName = url.searchParams.get('provider');
-    if (!providerName) return errorResponse('Missing provider parameter');
+    const provider = lookup(url.searchParams.get('provider'));
+    if (!provider) return errorResponse('Unknown or missing provider');
 
     const feature = url.searchParams.get('feature') ?? 'login';
     const scopes = provider.scopes[feature];
     if (!scopes) return errorResponse(`Unsupported feature: ${feature}`);
 
-    const state = generateState(providerName, feature);
+    const state = generateState(provider.name, feature);
     const csrf = JSON.parse(atob(state)).csrf as string;
 
     const authUrl = new URL(provider.authUrl);
@@ -85,31 +90,20 @@ export function createOAuthHandlers(config: OAuthHandlersConfig): OAuthHandlers 
     const url = new URL(request.url);
     const code = url.searchParams.get('code');
     const stateParam = url.searchParams.get('state');
-    const oauthError = url.searchParams.get('error');
-
-    if (oauthError || !code || !stateParam) {
-      return redirect(errorRedirectPath);
-    }
+    if (url.searchParams.get('error') || !code || !stateParam) return redirect(errorRedirectPath);
 
     let state: ReturnType<typeof parseState>;
-    try {
-      state = parseState(stateParam);
-    } catch {
-      return redirect(errorRedirectPath);
-    }
+    try { state = parseState(stateParam); } catch { return redirect(errorRedirectPath); }
 
-    // Validate CSRF
+    const provider = lookup(state.provider);
+    if (!provider) return redirect(errorRedirectPath);
+
     const csrfCookie = getCookie(request, csrfCookieName);
-    if (!csrfCookie || csrfCookie !== state.csrf) {
-      return redirect(errorRedirectPath);
-    }
+    if (!csrfCookie || csrfCookie !== state.csrf) return redirect(errorRedirectPath);
 
     let tokenResponse;
-    try {
-      tokenResponse = await exchangeCode(code, provider);
-    } catch {
-      return redirect(errorRedirectPath);
-    }
+    try { tokenResponse = await exchangeCode(code, provider); }
+    catch { return redirect(errorRedirectPath); }
 
     const clearCsrf = setCookieHeader(csrfCookieName, '', 0);
 
@@ -121,28 +115,19 @@ export function createOAuthHandlers(config: OAuthHandlersConfig): OAuthHandlers 
         provider: state.provider,
         feature: state.feature,
       });
-
       return new Response(null, {
         status: 302,
-        headers: {
-          Location: `${featureCallbackPath}#${fragment.toString()}`,
-          'Set-Cookie': clearCsrf,
-        },
+        headers: { Location: `${featureCallbackPath}#${fragment.toString()}`, 'Set-Cookie': clearCsrf },
       });
     }
 
-    if (!tokenResponse.refresh_token) {
-      return redirect(errorRedirectPath);
-    }
+    if (!tokenResponse.refresh_token) return redirect(errorRedirectPath);
 
     const cookieValue = encodeRefreshCookie(state.provider, tokenResponse.refresh_token);
-    const maxAge = 60 * 60 * 24 * 365; // 1 year
-
     const headers = new Headers();
     headers.append('Location', loginRedirectPath);
-    headers.append('Set-Cookie', setCookieHeader(cookieName, cookieValue, maxAge));
+    headers.append('Set-Cookie', setCookieHeader(cookieName, cookieValue, REFRESH_MAX_AGE));
     headers.append('Set-Cookie', clearCsrf);
-
     return new Response(null, { status: 302, headers });
   }
 
@@ -153,14 +138,16 @@ export function createOAuthHandlers(config: OAuthHandlersConfig): OAuthHandlers 
     const parsed = decodeRefreshCookie(cookie);
     if (!parsed) return errorResponse('Invalid refresh cookie', 401);
 
+    const provider = lookup(parsed.provider);
+    if (!provider) return errorResponse('Unknown provider', 401);
+
     const tokenResponse = await refreshAccessToken(parsed.refreshToken, provider);
     const newRefreshToken = tokenResponse.refresh_token || parsed.refreshToken;
 
     const responseHeaders: Record<string, string> = {};
     if (tokenResponse.refresh_token && tokenResponse.refresh_token !== parsed.refreshToken) {
-      const updatedCookie = encodeRefreshCookie(parsed.provider, tokenResponse.refresh_token);
-      const maxAge = 60 * 60 * 24 * 365;
-      responseHeaders['Set-Cookie'] = setCookieHeader(cookieName, updatedCookie, maxAge);
+      const updated = encodeRefreshCookie(parsed.provider, tokenResponse.refresh_token);
+      responseHeaders['Set-Cookie'] = setCookieHeader(cookieName, updated, REFRESH_MAX_AGE);
     }
 
     return jsonResponse({
@@ -175,23 +162,22 @@ export function createOAuthHandlers(config: OAuthHandlersConfig): OAuthHandlers 
     const cookie = getCookie(request, cookieName);
     if (cookie) {
       const parsed = decodeRefreshCookie(cookie);
-      if (parsed) {
+      const provider = parsed ? lookup(parsed.provider) : undefined;
+      if (parsed && provider) {
         await fetch(`${provider.revokeUrl}?token=${parsed.refreshToken}`, { method: 'POST' });
       }
     }
-
-    return jsonResponse({ ok: true }, 200, {
-      'Set-Cookie': clearCookieHeader(cookieName),
-    });
+    return jsonResponse({ ok: true }, 200, { 'Set-Cookie': clearCookieHeader(cookieName) });
   }
 
   async function handleFeatureRefresh(request: Request): Promise<Response> {
-    // Gate behind main auth cookie
-    const authCookie = getCookie(request, cookieName);
-    if (!authCookie) return errorResponse('Not authenticated', 401);
+    if (!getCookie(request, cookieName)) return errorResponse('Not authenticated', 401);
 
     const body = (await request.json()) as { provider?: string; refresh_token?: string };
     if (!body.provider || !body.refresh_token) return errorResponse('Missing provider or refresh_token');
+
+    const provider = lookup(body.provider);
+    if (!provider) return errorResponse(`Unknown provider: ${body.provider}`);
 
     const tokenResponse = await refreshAccessToken(body.refresh_token, provider);
 
@@ -204,15 +190,15 @@ export function createOAuthHandlers(config: OAuthHandlersConfig): OAuthHandlers 
   }
 
   async function handleFeatureRevoke(request: Request): Promise<Response> {
-    // Gate behind main auth cookie
-    const authCookie = getCookie(request, cookieName);
-    if (!authCookie) return errorResponse('Not authenticated', 401);
+    if (!getCookie(request, cookieName)) return errorResponse('Not authenticated', 401);
 
     const body = (await request.json()) as { provider?: string; token?: string };
     if (!body.provider || !body.token) return errorResponse('Missing provider or token');
 
-    await fetch(`${provider.revokeUrl}?token=${body.token}`, { method: 'POST' });
+    const provider = lookup(body.provider);
+    if (!provider) return errorResponse(`Unknown provider: ${body.provider}`);
 
+    await fetch(`${provider.revokeUrl}?token=${body.token}`, { method: 'POST' });
     return jsonResponse({ ok: true });
   }
 

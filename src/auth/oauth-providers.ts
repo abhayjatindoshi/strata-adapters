@@ -1,11 +1,7 @@
 export type ScopeMap = Readonly<Record<string, readonly string[]>>;
 
-export type ProviderInfo = {
+export type ProviderConfig = {
   readonly name: string;
-  readonly label: string;
-};
-
-export type ProviderConfig = ProviderInfo & {
   readonly authUrl: string;
   readonly tokenUrl: string;
   readonly revokeUrl: string;
