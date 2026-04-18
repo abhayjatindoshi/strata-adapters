@@ -20,10 +20,6 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./react": {
-      "types": "./dist/react/index.d.ts",
-      "import": "./dist/react/index.js"
-    },
     "./cloud": {
       "types": "./dist/cloud/index.d.ts",
       "import": "./dist/cloud/index.js"
@@ -46,18 +42,13 @@
     "test": "vitest run"
   },
   "peerDependencies": {
-    "react": "^19.2.5",
-    "react-router": "^7.0.0",
     "rxjs": "^7.8.2",
     "strata-data-sync": "file:../strata-data-sync"
   },
   "devDependencies": {
     "@types/debug": "^4.1.13",
     "@types/node": "^25.5.0",
-    "@types/react": "^19.2.14",
     "@vitest/coverage-v8": "^4.1.1",
-    "react": "^19.2.5",
-    "react-router": "^7.14.0",
     "rxjs": "^7.8.2",
     "strata-data-sync": "file:../strata-data-sync",
     "tsc-alias": "^1.8.16",
