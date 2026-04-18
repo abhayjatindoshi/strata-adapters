@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
 import { useAuth } from '../hooks/use-auth';
 import { useProviders } from '../hooks/use-providers';
-import { getProviderBrand, type LoginButtonBaseProps } from './provider-brand';
+import { resolveBrand, type LoginButtonBaseProps } from './provider-brand';
 import { LOGIN_FEATURE } from '@strata-adapters/auth/constants';
 
 export type LoginButtonProps = LoginButtonBaseProps & {
@@ -51,7 +51,7 @@ export function LoginButton({
 
   const target = provider ?? providers.find((p) => p.features[LOGIN_FEATURE])?.name;
   const providerModule = target ? providers.find((p) => p.name === target) : undefined;
-  const brand = getProviderBrand(target ?? '', providerModule?.label ?? target ?? '');
+  const brand = resolveBrand(providerModule);
   const busy = state.status === 'loading' || !target;
 
   const themeStyle = brand.themes[theme];

@@ -28,7 +28,7 @@ export function LoginButtons({
       style={{ display: 'flex', flexDirection: 'column', gap, ...containerStyle }}
     >
       {loginProviders.map((p) => (
-        <LoginButton key={p.name} provider={p.name} {...buttonProps} />
+        <LoginButton key={p.name} provider={p.name} theme='dark' {...buttonProps} />
       ))}
     </div>
   );

@@ -23,6 +23,14 @@
     "./react": {
       "types": "./dist/react/index.d.ts",
       "import": "./dist/react/index.js"
+    },
+    "./providers/google": {
+      "types": "./dist/providers/google/index.d.ts",
+      "import": "./dist/providers/google/index.js"
+    },
+    "./providers/local": {
+      "types": "./dist/providers/local/index.d.ts",
+      "import": "./dist/providers/local/index.js"
     }
   },
   "files": [

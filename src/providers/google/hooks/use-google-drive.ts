@@ -1,8 +1,8 @@
 import { useState, useCallback, useMemo } from 'react';
 import type { Tenant, CreateTenantOptions, JoinTenantOptions } from 'strata-data-sync';
-import { GoogleDriveBrowser, type DriveFile } from '@strata-adapters/browsers/google-drive-browser';
-import { validateGoogleDriveMeta, type GoogleDriveSpace } from '@strata-adapters/services/tenant-meta';
-import { useStrata } from './use-strata';
+import { GoogleDriveBrowser, type DriveFile } from '../google-drive-browser';
+import { validateGoogleDriveMeta, type GoogleDriveSpace } from '../google-tenant-meta';
+import { useStrata } from '@strata-adapters/react/hooks/use-strata';
 
 // --- Google Create Form ---
 

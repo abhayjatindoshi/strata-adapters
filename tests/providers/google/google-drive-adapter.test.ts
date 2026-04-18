@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import type { Tenant } from 'strata-data-sync';
-import { GoogleDriveAdapter } from '@strata-adapters/adapters/google-drive/google-drive';
+import { GoogleDriveAdapter } from '@strata-adapters/providers/google/google-drive-adapter';
 import {
   PermissionDeniedError,
   AuthExpiredError,

@@ -18,7 +18,8 @@ export { LoginButton } from './components/login-button';
 export type { LoginButtonProps } from './components/login-button';
 export { LoginButtons } from './components/login-buttons';
 export type { LoginButtonsProps } from './components/login-buttons';
-export type { LoginButtonTheme, LoginButtonBaseProps, ProviderBrand } from './components/provider-brand';
+export type { LoginButtonTheme, LoginButtonBaseProps } from './components/provider-brand';
+export type { ProviderBrand } from '@strata-adapters/auth/provider-brand';
 
 // Core hooks
 export { useStrata } from './hooks/use-strata';
@@ -33,14 +34,5 @@ export { useEncryption } from './hooks/use-encryption';
 export { useRepo, useEntity, useQuery } from './hooks/use-repo';
 export { useObservable } from './hooks/use-observable';
 
-// Google Drive hooks
-export {
-  useGoogleCreateForm,
-  useGoogleOpenForm,
-  useGoogleFileBrowser,
-} from './hooks/use-google-drive';
-export type {
-  GoogleCreateFormState,
-  GoogleOpenFormState,
-  GoogleFileBrowserState,
-} from './hooks/use-google-drive';
+// Provider-specific hooks moved to provider folders:
+//   import { useGoogleCreateForm } from 'strata-adapters/providers/google';

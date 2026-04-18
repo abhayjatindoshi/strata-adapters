@@ -6,7 +6,7 @@ import {
   type BlobMigration,
   type EncryptionService,
 } from 'strata-data-sync';
-import { LocalStorageAdapter } from '@strata-adapters/adapters/local-storage/local-storage';
+import { LocalStorageAdapter } from '@strata-adapters/providers/local/local-storage-adapter';
 import { withGzip } from '@strata-adapters/transforms/gzip';
 import { withRetry } from '@strata-adapters/transforms/retry';
 import { withErrorBroadcast } from '@strata-adapters/transforms/error-broadcast';

@@ -9,5 +9,3 @@ export type {
 } from './strata-config';
 export { createSyncStatus$, createDirtyState$ } from './sync-status';
 export type { SyncStatus } from './sync-status';
-export { validateGoogleDriveMeta } from './tenant-meta';
-export type { GoogleDriveSpace, GoogleDriveTenantMeta } from './tenant-meta';

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import type { Tenant } from 'strata-data-sync';
-import { LocalStorageAdapter } from '@strata-adapters/adapters/local-storage/local-storage';
+import { LocalStorageAdapter } from '@strata-adapters/providers/local/local-storage-adapter';
 import { QuotaExceededError } from '@strata-adapters/errors/strata-error';
 
 // Minimal localStorage polyfill for Node

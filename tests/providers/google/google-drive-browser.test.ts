@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
-import { GoogleDriveBrowser } from '@strata-adapters/browsers/google-drive-browser';
+import { GoogleDriveBrowser } from '@strata-adapters/providers/google/google-drive-browser';
 import {
   AuthExpiredError,
   PermissionDeniedError,

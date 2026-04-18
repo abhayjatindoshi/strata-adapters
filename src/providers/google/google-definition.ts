@@ -1,6 +1,6 @@
-import type { CloudFactory } from '../auth/provider-module';
-import type { FeatureSpec, FeatureMap } from '../auth/feature-spec';
-import { GoogleDriveAdapter } from '../adapters/google-drive/google-drive';
+import type { CloudFactory } from '@strata-adapters/auth/provider-module';
+import type { FeatureSpec, FeatureMap } from '@strata-adapters/auth/feature-spec';
+import { GoogleDriveAdapter } from './google-drive-adapter';
 
 /** Pre-filled OAuth endpoints for Google. */
 export const GOOGLE_OAUTH_ENDPOINTS = {
