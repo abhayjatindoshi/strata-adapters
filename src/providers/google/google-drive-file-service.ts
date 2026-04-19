@@ -54,7 +54,7 @@ export class GoogleDriveFileService implements CloudFileService {
     this.spaces = options.spaces ?? DEFAULT_SPACES;
   }
 
-  async getSpaces(): Promise<ReadonlyArray<CloudSpace>> {
+  async getSpaces(_signal?: AbortSignal): Promise<ReadonlyArray<CloudSpace>> {
     return this.spaces;
   }
 
@@ -62,6 +62,7 @@ export class GoogleDriveFileService implements CloudFileService {
     space: CloudSpace,
     parentFolderId: string | undefined,
     search: string | undefined,
+    signal?: AbortSignal,
   ): Promise<ReadonlyArray<GoogleDriveFile>> {
     const token = await this.getAccessToken();
     const clauses: string[] = ['trashed=false'];
@@ -95,6 +96,7 @@ export class GoogleDriveFileService implements CloudFileService {
 
     const response = await fetch(`${DRIVE_API}?${params.toString()}`, {
       headers: { Authorization: `Bearer ${token}` },
+      signal,
     });
     if (!response.ok) throw mapDriveError('list', response);
 
@@ -108,6 +110,7 @@ export class GoogleDriveFileService implements CloudFileService {
     space: CloudSpace,
     name: string,
     parentFolderId: string | undefined,
+    signal?: AbortSignal,
   ): Promise<GoogleDriveFile> {
     const token = await this.getAccessToken();
     const parent = parentFolderId ?? rootFolderId(space);
@@ -124,6 +127,7 @@ export class GoogleDriveFileService implements CloudFileService {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
+      signal,
     });
     if (!response.ok) throw mapDriveError('write', response);
 

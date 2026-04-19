@@ -35,7 +35,7 @@ export type CloudFile = {
  */
 export type CloudFileService = {
   /** Top-level partitions the user can switch between. */
-  readonly getSpaces: () => Promise<ReadonlyArray<CloudSpace>>;
+  readonly getSpaces: (signal?: AbortSignal) => Promise<ReadonlyArray<CloudSpace>>;
   /**
    * List children of `parentFolder` within `space`. When `parentFolder` is
    * undefined, list the space root. `search` is a free-text filter applied
@@ -45,12 +45,14 @@ export type CloudFileService = {
     space: CloudSpace,
     parentFolderId: string | undefined,
     search: string | undefined,
+    signal?: AbortSignal,
   ) => Promise<ReadonlyArray<CloudFile>>;
   /** Create a new folder under `parentFolder` (or space root when undefined). */
   readonly createFolder: (
     space: CloudSpace,
     name: string,
     parentFolderId: string | undefined,
+    signal?: AbortSignal,
   ) => Promise<CloudFile>;
 };
 

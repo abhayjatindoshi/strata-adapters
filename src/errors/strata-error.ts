@@ -1,3 +1,8 @@
+import { StrataError, type ErrorOperation } from 'strata-data-sync';
+
+export type { ErrorOperation } from 'strata-data-sync';
+export { StrataError } from 'strata-data-sync';
+
 export type ErrorKind =
   | 'auth-expired'
   | 'quota-exceeded'
@@ -7,32 +12,6 @@ export type ErrorKind =
   | 'rate-limited'
   | 'data-corrupted'
   | 'unknown';
-
-export type ErrorOperation = 'read' | 'write' | 'delete' | 'list' | 'sync' | 'resolve';
-
-export class StrataError extends Error {
-  readonly kind: ErrorKind;
-  readonly operation: ErrorOperation;
-  readonly retryable: boolean;
-  readonly originalError?: Error;
-
-  constructor(
-    message: string,
-    options: {
-      kind: ErrorKind;
-      operation: ErrorOperation;
-      retryable?: boolean;
-      originalError?: Error;
-    },
-  ) {
-    super(message);
-    this.name = 'StrataError';
-    this.kind = options.kind;
-    this.operation = options.operation;
-    this.retryable = options.retryable ?? false;
-    this.originalError = options.originalError;
-  }
-}
 
 export class AuthExpiredError extends StrataError {
   constructor(operation: ErrorOperation, originalError?: Error) {

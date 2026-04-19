@@ -9,10 +9,8 @@ import {
 import { LocalStorageAdapter } from '@strata-adapters/providers/local/local-storage-adapter';
 import { withGzip } from '@strata-adapters/transforms/gzip';
 import { withRetry } from '@strata-adapters/transforms/retry';
-import { withErrorBroadcast } from '@strata-adapters/transforms/error-broadcast';
 import { Pbkdf2EncryptionService } from '@strata-adapters/encryption/pbkdf2-service';
 import { AesGcmEncryptionStrategy } from '@strata-adapters/encryption/strategy/aes-gcm-strategy';
-import { ErrorBus } from '@strata-adapters/errors/error-bus';
 import type { AuthAdapter } from '@strata-adapters/auth/auth-adapter';
 import type { CloudFactory } from '@strata-adapters/auth/provider-module';
 import type { EncryptionConfig } from './strata-config';
@@ -31,7 +29,6 @@ export type CreateStrataInstanceConfig = {
 
 export type StrataInstance = {
   readonly strata: Strata;
-  readonly errorBus: ErrorBus;
   readonly dispose: () => Promise<void>;
 };
 
@@ -58,10 +55,9 @@ export function createStrataInstance(config: CreateStrataInstanceConfig): Strata
   const { auth, cloud, appId, deviceIdKey, entities, encryption, migrations, options } = config;
 
   const deviceId = getOrCreateDeviceId(deviceIdKey);
-  const errorBus = new ErrorBus();
   const localAdapter = new LocalStorageAdapter(appId);
   const rawCloud = cloud(auth);
-  const cloudAdapter = withErrorBroadcast(withGzip(withRetry(rawCloud)), errorBus);
+  const cloudAdapter = withGzip(withRetry(rawCloud));
   const encryptionService = buildEncryption(encryption);
 
   const coreConfig: CoreStrataConfig = {
@@ -79,8 +75,7 @@ export function createStrataInstance(config: CreateStrataInstanceConfig): Strata
 
   const dispose = async () => {
     await strata.dispose();
-    errorBus.dispose();
   };
 
-  return { strata, errorBus, dispose };
+  return { strata, dispose };
 }
