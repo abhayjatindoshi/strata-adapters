@@ -38,7 +38,7 @@ function errorResponse(status: number, statusText = 'Error'): Response {
 describe('GoogleDriveAdapter', () => {
   let adapter: GoogleDriveAdapter;
   let mockFetch: Mock;
-  const getToken = vi.fn().mockResolvedValue('test-token');
+  const getToken = vi.fn().mockResolvedValue({ name: 'google', token: 'test-token' });
 
   const appDataTenant = makeTenant({
     id: 'app-tenant',
@@ -53,7 +53,7 @@ describe('GoogleDriveAdapter', () => {
   beforeEach(() => {
     mockFetch = vi.fn();
     vi.stubGlobal('fetch', mockFetch);
-    getToken.mockResolvedValue('test-token');
+    getToken.mockResolvedValue({ name: 'google', token: 'test-token' });
     adapter = new GoogleDriveAdapter(getToken);
   });
 
@@ -342,7 +342,7 @@ describe('GoogleDriveAdapter', () => {
 
   describe('authorization', () => {
     it('passes bearer token to all requests', async () => {
-      getToken.mockResolvedValue('my-secret-token');
+      getToken.mockResolvedValue({ name: 'google', token: 'my-secret-token' });
       mockFetch.mockResolvedValueOnce(jsonResponse({ files: [{ id: 'f1' }] }));
       mockFetch.mockResolvedValueOnce(binaryResponse(new Uint8Array([1])));
 

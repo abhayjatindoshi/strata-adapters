@@ -1,5 +1,6 @@
 import type { StorageAdapter, Tenant } from 'strata-data-sync'
 import { compositeKey } from 'strata-data-sync'
+import type { AccessToken } from '@strata-adapters/auth/types'
 import type { ErrorOperation } from '@strata-adapters/errors/strata-error'
 import {
   StrataError,
@@ -32,11 +33,23 @@ function getDriveMeta(tenant: Tenant | undefined): DriveMeta {
 }
 
 export class GoogleDriveAdapter implements StorageAdapter {
-  private readonly getAccessToken: () => Promise<string>
+  private readonly getToken: () => Promise<AccessToken | null>
   private readonly fileIdCache = new Map<string, string>()
 
-  constructor(getAccessToken: () => Promise<string>) {
-    this.getAccessToken = getAccessToken
+  constructor(getAccessToken: () => Promise<AccessToken | null>) {
+    this.getToken = getAccessToken
+  }
+
+  private async getAccessToken(): Promise<string> {
+    const token = await this.getToken()
+    if (!token) throw new AuthExpiredError('read', new Error('No access token available'))
+    if (token.name !== 'google') {
+      throw new AuthExpiredError(
+        'read',
+        new Error(`Expected google access token, got ${token.name}`),
+      )
+    }
+    return token.token
   }
 
   deriveTenantId(meta: Record<string, unknown>): string {

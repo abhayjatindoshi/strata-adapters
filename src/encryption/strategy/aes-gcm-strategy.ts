@@ -1,5 +1,5 @@
 import type { EncryptionStrategy } from 'strata-data-sync';
-import { aesGcmEncrypt, aesGcmDecrypt } from 'strata-data-sync';
+import { aesGcmEncrypt, aesGcmDecrypt } from '../crypto';
 import { InvalidEncryptionKeyError } from 'strata-data-sync';
 
 export class AesGcmEncryptionStrategy implements EncryptionStrategy<CryptoKey> {

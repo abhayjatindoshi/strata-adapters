@@ -2,7 +2,7 @@ import debug from 'debug';
 import type { EncryptionStrategy, EncryptionService, EncryptionKeys } from 'strata-data-sync';
 import {
   pbkdf2DeriveKeyWithSalt, aesGcmGenerateKey, exportCryptoKey, importAesGcmKey,
-} from 'strata-data-sync';
+} from './crypto';
 
 const log = debug('strata:encryption');
 

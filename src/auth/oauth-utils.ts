@@ -1,7 +1,7 @@
-export function generateState(provider: string, feature: string): string {
+export function generateState(provider: string, feature: string): { state: string; csrf: string } {
   const csrf = crypto.randomUUID();
   const payload = { provider, feature, csrf };
-  return btoa(JSON.stringify(payload));
+  return { state: btoa(JSON.stringify(payload)), csrf };
 }
 
 export type OAuthState = {
@@ -43,17 +43,7 @@ export function getCookie(request: Request, name: string): string | undefined {
   return match?.substring(name.length + 1);
 }
 
-export function encodeRefreshCookie(provider: string, refreshToken: string): string {
-  return btoa(JSON.stringify({ provider, refreshToken }));
-}
 
-export function decodeRefreshCookie(value: string): { provider: string; refreshToken: string } | null {
-  try {
-    return JSON.parse(atob(value)) as { provider: string; refreshToken: string };
-  } catch {
-    return null;
-  }
-}
 
 export function isSafeReturnUrl(url: string): boolean {
   return url.startsWith('/') && !url.startsWith('//') && !url.startsWith('/\\') && !url.toLowerCase().startsWith('javascript:');
