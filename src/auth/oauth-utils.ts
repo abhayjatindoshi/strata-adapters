@@ -48,3 +48,16 @@ export function getCookie(request: Request, name: string): string | undefined {
 export function isSafeReturnUrl(url: string): boolean {
   return url.startsWith('/') && !url.startsWith('//') && !url.startsWith('/\\') && !url.toLowerCase().startsWith('javascript:');
 }
+
+export type RefreshCookiePayload = {
+  readonly name: string;
+  readonly token: string;
+};
+
+export function encodeRefreshCookie(name: string, token: string): string {
+  return btoa(JSON.stringify({ name, token }));
+}
+
+export function decodeRefreshCookie(value: string): RefreshCookiePayload {
+  return JSON.parse(atob(value)) as RefreshCookiePayload;
+}

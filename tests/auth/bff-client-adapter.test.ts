@@ -2,8 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vite
 import { BffClientAdapter } from '@strata-adapters/auth/bff-client-adapter';
 
 const PREFIX = '/api/auth';
-const REFRESH_URL = `${PREFIX}/refresh?provider=google`;
-const LOGOUT_URL = `${PREFIX}/logout?provider=google`;
+const REFRESH_URL = `${PREFIX}/refresh`;
+const LOGOUT_URL = `${PREFIX}/logout`;
 const LOGIN_URL = `${PREFIX}/login?provider=google`;
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -38,13 +38,13 @@ describe('BffClientAdapter', () => {
     expect(a.label).toBe('Google');
   });
 
-  it('refresh posts to /refresh?provider=… and returns a tagged AccessToken', async () => {
+  it('refresh posts to /refresh and returns a tagged AccessToken', async () => {
     mockFetch.mockResolvedValueOnce(
-      jsonResponse({ access_token: 'tok-1', expires_in: 3600 }),
+      jsonResponse({ access_token: 'tok-1', expires_in: 3600, name: 'google' }),
     );
     const a = newAdapter();
     const r = await a.refresh();
-    expect(mockFetch).toHaveBeenCalledWith(REFRESH_URL, { method: 'POST' });
+    expect(mockFetch).toHaveBeenCalledWith(REFRESH_URL, { method: 'POST', credentials: 'include' });
     expect(r).toEqual({
       name: 'google',
       token: 'tok-1',
@@ -68,10 +68,10 @@ describe('BffClientAdapter', () => {
     expect(await newAdapter().refresh()).toBeNull();
   });
 
-  it('logout posts to /logout?provider=…', async () => {
+  it('logout posts to /logout', async () => {
     mockFetch.mockResolvedValueOnce(new Response(null, { status: 200 }));
     await newAdapter().logout();
-    expect(mockFetch).toHaveBeenCalledWith(LOGOUT_URL, { method: 'POST' });
+    expect(mockFetch).toHaveBeenCalledWith(LOGOUT_URL, { method: 'POST', credentials: 'include' });
   });
 
   it('logout swallows network errors', async () => {
@@ -86,22 +86,15 @@ describe('BffClientAdapter', () => {
 
   it('strips a trailing slash from prefix', async () => {
     mockFetch.mockResolvedValueOnce(
-      jsonResponse({ access_token: 'tok-1', expires_in: 3600 }),
+      jsonResponse({ access_token: 'tok-1', expires_in: 3600, name: 'google' }),
     );
     const a = new BffClientAdapter({ name: 'google', label: 'Google', prefix: '/api/auth/' });
     await a.refresh();
-    expect(mockFetch).toHaveBeenCalledWith(REFRESH_URL, { method: 'POST' });
+    expect(mockFetch).toHaveBeenCalledWith(REFRESH_URL, { method: 'POST', credentials: 'include' });
   });
 
-  it('url-encodes the provider name in the query string', async () => {
-    mockFetch.mockResolvedValueOnce(
-      jsonResponse({ access_token: 'tok-1', expires_in: 3600 }),
-    );
-    const a = new BffClientAdapter({ name: 'oauth/edge', label: 'X', prefix: PREFIX });
-    await a.refresh();
-    expect(mockFetch).toHaveBeenCalledWith(
-      `${PREFIX}/refresh?provider=oauth%2Fedge`,
-      { method: 'POST' },
-    );
+  it('login URL includes provider query param', () => {
+    void newAdapter().login();
+    expect(mockLocation.href).toBe(LOGIN_URL);
   });
 });

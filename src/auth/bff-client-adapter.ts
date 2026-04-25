@@ -46,7 +46,7 @@ export class BffClientAdapter implements ClientAuthAdapter {
 
   async logout(): Promise<void> {
     try {
-      await fetch(this.url('/logout'), { method: 'POST', credentials: 'include' });
+      await fetch(`${this.prefix}/logout`, { method: 'POST', credentials: 'include' });
     } catch {
       /* best-effort */
     }
@@ -54,14 +54,14 @@ export class BffClientAdapter implements ClientAuthAdapter {
 
   async refresh(): Promise<AccessToken | null> {
     try {
-      const response = await fetch(this.url('/refresh'), { method: 'POST', credentials: 'include' });
+      const response = await fetch(`${this.prefix}/refresh`, { method: 'POST', credentials: 'include' });
       if (!response.ok) return null;
-      const data = (await response.json()) as { access_token?: unknown; expires_in?: unknown };
+      const data = (await response.json()) as { access_token?: unknown; expires_in?: unknown; name?: unknown };
       if (typeof data.access_token !== 'string' || typeof data.expires_in !== 'number') {
         return null;
       }
       return {
-        name: this.name,
+        name: typeof data.name === 'string' ? data.name : this.name,
         token: data.access_token,
         expiresAt: Date.now() + data.expires_in * 1000,
       };
@@ -70,8 +70,7 @@ export class BffClientAdapter implements ClientAuthAdapter {
     }
   }
 
-  private url(path: string, feature?: string): string {
-    const base = `${this.prefix}${path}?provider=${encodeURIComponent(this.name)}`;
-    return feature ? `${base}&feature=${encodeURIComponent(feature)}` : base;
+  private url(path: string): string {
+    return `${this.prefix}${path}?provider=${encodeURIComponent(this.name)}`;
   }
 }

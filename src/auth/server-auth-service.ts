@@ -7,19 +7,21 @@ import {
   setCookieHeader,
   clearCookieHeader,
   getCookie,
+  encodeRefreshCookie,
+  decodeRefreshCookie,
 } from './oauth-utils';
-
-export type ServerAuthRegistration = {
-  readonly adapter: ServerAuthAdapter;
-  readonly refreshCookieName: string;
-  readonly csrfCookieName: string;
-  readonly loginRedirectPath: string;
-  readonly errorRedirectPath: string;
-};
 
 export type ServerAuthServiceOptions = {
   /** URL prefix shared by all auth routes (e.g. `'/api/auth'`). */
   readonly basePath: string;
+  /** Cookie name for the base64-encoded refresh token payload. */
+  readonly refreshCookieName: string;
+  /** Cookie name for the CSRF token used during the OAuth round-trip. */
+  readonly csrfCookieName: string;
+  /** Path to redirect to after a successful login callback. */
+  readonly loginRedirectPath: string;
+  /** Path to redirect to when the OAuth callback fails. */
+  readonly errorRedirectPath: string;
 };
 
 const CSRF_MAX_AGE = 600;
@@ -31,22 +33,34 @@ const REFRESH_MAX_AGE = 60 * 60 * 24 * 365;
  * operations (auth URL, code exchange, refresh, logout) to the registered
  * `ServerAuthAdapter`s.
  *
+ * The refresh cookie stores a base64-encoded JSON payload `{ name, token }`
+ * so the provider can be resolved from the cookie on refresh/logout without
+ * requiring a `?provider=` query parameter.
+ *
  * Per PLUGGABLES_V2 §6.
  */
 export class ServerAuthService {
   private readonly basePath: string;
-  private readonly byName: ReadonlyMap<string, ServerAuthRegistration>;
+  private readonly refreshCookieName: string;
+  private readonly csrfCookieName: string;
+  private readonly loginRedirectPath: string;
+  private readonly errorRedirectPath: string;
+  private readonly byName: ReadonlyMap<string, ServerAuthAdapter>;
 
-  constructor(registrations: readonly ServerAuthRegistration[], options: ServerAuthServiceOptions) {
-    const byName = new Map<string, ServerAuthRegistration>();
-    for (const r of registrations) {
-      if (byName.has(r.adapter.name)) {
-        throw new Error(`ServerAuthService: duplicate adapter name "${r.adapter.name}"`);
+  constructor(adapters: readonly ServerAuthAdapter[], options: ServerAuthServiceOptions) {
+    const byName = new Map<string, ServerAuthAdapter>();
+    for (const a of adapters) {
+      if (byName.has(a.name)) {
+        throw new Error(`ServerAuthService: duplicate adapter name "${a.name}"`);
       }
-      byName.set(r.adapter.name, r);
+      byName.set(a.name, a);
     }
     this.byName = byName;
     this.basePath = options.basePath.replace(/\/+$/, '');
+    this.refreshCookieName = options.refreshCookieName;
+    this.csrfCookieName = options.csrfCookieName;
+    this.loginRedirectPath = options.loginRedirectPath;
+    this.errorRedirectPath = options.errorRedirectPath;
   }
 
   async fetch(request: Request): Promise<Response> {
@@ -58,31 +72,33 @@ export class ServerAuthService {
 
     if (method === 'GET' && path === '/callback') return this.handleCallback(request, url);
 
-    const reg = this.resolveByProvider(url);
-    if (!reg) return new Response('Not found', { status: 404 });
+    if (method === 'GET' && path === '/login') {
+      const adapter = this.resolveByProvider(url);
+      if (!adapter) return new Response('Not found', { status: 404 });
+      return this.handleLogin(url, adapter);
+    }
 
-    if (method === 'GET' && path === '/login') return this.handleLogin(url, reg);
-    if (method === 'POST' && path === '/refresh') return this.handleRefresh(request, reg);
-    if (method === 'POST' && path === '/logout') return this.handleLogout(request, reg);
+    if (method === 'POST' && path === '/refresh') return this.handleRefresh(request);
+    if (method === 'POST' && path === '/logout') return this.handleLogout(request);
 
     return new Response('Not found', { status: 404 });
   }
 
   // ─── handlers ────────────────────────────────────────────
 
-  private handleLogin(url: URL, reg: ServerAuthRegistration): Response {
+  private handleLogin(url: URL, adapter: ServerAuthAdapter): Response {
     const feature = url.searchParams.get('feature') ?? 'login';
-    const scopes = reg.adapter.scopes[feature];
+    const scopes = adapter.scopes[feature];
     if (!scopes) return errorResponse(`Unknown feature: ${feature}`, 400);
 
-    const { state, csrf } = generateState(reg.adapter.name, feature);
-    const authUrl = reg.adapter.login(state, feature);
+    const { state, csrf } = generateState(adapter.name, feature);
+    const authUrl = adapter.login(state, feature);
 
     return new Response(null, {
       status: 302,
       headers: {
         Location: authUrl,
-        'Set-Cookie': setCookieHeader(reg.csrfCookieName, csrf, CSRF_MAX_AGE),
+        'Set-Cookie': setCookieHeader(this.csrfCookieName, csrf, CSRF_MAX_AGE),
       },
     });
   }
@@ -101,61 +117,64 @@ export class ServerAuthService {
       return new Response('Not found', { status: 404 });
     }
 
-    const reg = this.byName.get(state.provider);
-    if (!reg) return new Response('Not found', { status: 404 });
+    const adapter = this.byName.get(state.provider);
+    if (!adapter) return new Response('Not found', { status: 404 });
 
-    const csrfCookie = getCookie(request, reg.csrfCookieName);
-    if (!csrfCookie || csrfCookie !== state.csrf) return this.redirectError(reg);
+    const csrfCookie = getCookie(request, this.csrfCookieName);
+    if (!csrfCookie || csrfCookie !== state.csrf) return this.redirectError();
 
     let result;
     try {
-      result = await reg.adapter.exchangeCode(code);
+      result = await adapter.exchangeCode(code);
     } catch {
-      return this.redirectError(reg);
+      return this.redirectError();
     }
 
-    if (!result.refreshToken) return this.redirectError(reg);
+    if (!result.refreshToken) return this.redirectError();
 
+    const cookieValue = encodeRefreshCookie(adapter.name, result.refreshToken);
     const headers = new Headers();
-    headers.append('Location', reg.loginRedirectPath);
-    headers.append('Set-Cookie', setCookieHeader(reg.refreshCookieName, result.refreshToken, REFRESH_MAX_AGE));
-    headers.append('Set-Cookie', setCookieHeader(reg.csrfCookieName, '', 0));
+    headers.append('Location', this.loginRedirectPath);
+    headers.append('Set-Cookie', setCookieHeader(this.refreshCookieName, cookieValue, REFRESH_MAX_AGE));
+    headers.append('Set-Cookie', setCookieHeader(this.csrfCookieName, '', 0));
     return new Response(null, { status: 302, headers });
   }
 
-  private async handleRefresh(request: Request, reg: ServerAuthRegistration): Promise<Response> {
-    const refreshToken = getCookie(request, reg.refreshCookieName);
-    if (!refreshToken) return errorResponse('No refresh token found', 401);
+  private async handleRefresh(request: Request): Promise<Response> {
+    const resolved = this.resolveFromCookie(request);
+    if (!resolved) return errorResponse('No refresh token found', 401);
+    const { adapter, token } = resolved;
 
     let result;
     try {
-      result = await reg.adapter.refresh(refreshToken);
+      result = await adapter.refresh(token);
     } catch {
       return errorResponse('Refresh failed', 401);
     }
 
     const responseHeaders: Record<string, string> = {};
-    if (result.refreshToken && result.refreshToken !== refreshToken) {
-      responseHeaders['Set-Cookie'] = setCookieHeader(reg.refreshCookieName, result.refreshToken, REFRESH_MAX_AGE);
+    if (result.refreshToken && result.refreshToken !== token) {
+      const cookieValue = encodeRefreshCookie(adapter.name, result.refreshToken);
+      responseHeaders['Set-Cookie'] = setCookieHeader(this.refreshCookieName, cookieValue, REFRESH_MAX_AGE);
     }
 
     return jsonResponse(
-      { access_token: result.accessToken, expires_in: result.expiresIn },
+      { access_token: result.accessToken, expires_in: result.expiresIn, name: adapter.name },
       200,
       responseHeaders,
     );
   }
 
-  private async handleLogout(request: Request, reg: ServerAuthRegistration): Promise<Response> {
-    const refreshToken = getCookie(request, reg.refreshCookieName);
-    if (refreshToken) {
+  private async handleLogout(request: Request): Promise<Response> {
+    const resolved = this.resolveFromCookie(request);
+    if (resolved) {
       try {
-        await reg.adapter.logout(refreshToken);
+        await resolved.adapter.logout(resolved.token);
       } catch {
         // best-effort
       }
     }
-    return jsonResponse({ ok: true }, 200, { 'Set-Cookie': clearCookieHeader(reg.refreshCookieName) });
+    return jsonResponse({ ok: true }, 200, { 'Set-Cookie': clearCookieHeader(this.refreshCookieName) });
   }
 
   // ─── internals ───────────────────────────────────────────
@@ -167,12 +186,25 @@ export class ServerAuthService {
     return null;
   }
 
-  private resolveByProvider(url: URL): ServerAuthRegistration | undefined {
+  private resolveByProvider(url: URL): ServerAuthAdapter | undefined {
     const name = url.searchParams.get('provider');
     return name ? this.byName.get(name) : undefined;
   }
 
-  private redirectError(reg: ServerAuthRegistration): Response {
-    return new Response(null, { status: 302, headers: { Location: reg.errorRedirectPath } });
+  private resolveFromCookie(request: Request): { adapter: ServerAuthAdapter; token: string } | null {
+    const raw = getCookie(request, this.refreshCookieName);
+    if (!raw) return null;
+    try {
+      const { name, token } = decodeRefreshCookie(raw);
+      const adapter = this.byName.get(name);
+      if (!adapter) return null;
+      return { adapter, token };
+    } catch {
+      return null;
+    }
+  }
+
+  private redirectError(): Response {
+    return new Response(null, { status: 302, headers: { Location: this.errorRedirectPath } });
   }
 }

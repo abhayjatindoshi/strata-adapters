@@ -1,8 +1,8 @@
 export type { AccessToken, AuthState, AuthStateStatus, ClientAuthAdapter, ServerAuthAdapter, ServerAuthTokenResult, OAuthEndpoints } from './types';
-export type { SupportedAuth, ClientAuthServiceOptions } from './client-auth-service';
+export type { SupportedAuth } from './client-auth-service';
 
 export { ServerAuthService } from './server-auth-service';
-export type { ServerAuthRegistration, ServerAuthServiceOptions } from './server-auth-service';
+export type { ServerAuthServiceOptions } from './server-auth-service';
 
 export { BffClientAdapter } from './bff-client-adapter';
 export type { BffClientAdapterConfig } from './bff-client-adapter';
@@ -22,5 +22,7 @@ export {
   clearCookieHeader,
   getCookie,
   isSafeReturnUrl,
+  encodeRefreshCookie,
+  decodeRefreshCookie,
 } from './oauth-utils';
-export type { OAuthState } from './oauth-utils';
+export type { OAuthState, RefreshCookiePayload } from './oauth-utils';
