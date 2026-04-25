@@ -36,9 +36,14 @@ export class BffClientAdapter implements ClientAuthAdapter {
    * Begins the BFF login flow by navigating the page to
    * `${prefix}/login?provider={name}`. Resolves never — the page is
    * unloaded by the redirect.
+   *
+   * @param feature — scope group to request. Defaults to `'login'`.
    */
-  async login(): Promise<void> {
-    window.location.href = this.url('/login');
+  async login(feature?: string): Promise<void> {
+    const url = feature && feature !== 'login'
+      ? this.url('/login') + `&feature=${encodeURIComponent(feature)}`
+      : this.url('/login');
+    window.location.href = url;
     await new Promise<void>(() => {
       /* never resolves; page is navigating away */
     });
@@ -52,9 +57,26 @@ export class BffClientAdapter implements ClientAuthAdapter {
     }
   }
 
-  async refresh(): Promise<AccessToken | null> {
+  /**
+   * Refresh an access token.
+   * - No `feature` / `'login'` → refresh via HttpOnly cookie (current flow).
+   * - With `feature` + `refreshToken` → POST the refresh token in the body;
+   *   server verifies the login cookie, then refreshes the feature token.
+   */
+  async refresh(feature?: string, refreshToken?: string): Promise<AccessToken | null> {
     try {
-      const response = await fetch(`${this.prefix}/refresh`, { method: 'POST', credentials: 'include' });
+      const isFeature = feature && feature !== 'login' && refreshToken;
+      const url = isFeature
+        ? `${this.prefix}/refresh?provider=${encodeURIComponent(this.name)}&feature=${encodeURIComponent(feature)}`
+        : `${this.prefix}/refresh`;
+      const response = await fetch(url, {
+        method: 'POST',
+        credentials: 'include',
+        ...(isFeature ? {
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refresh_token: refreshToken }),
+        } : {}),
+      });
       if (!response.ok) return null;
       const data = (await response.json()) as { access_token?: unknown; expires_in?: unknown; name?: unknown };
       if (typeof data.access_token !== 'string' || typeof data.expires_in !== 'number') {

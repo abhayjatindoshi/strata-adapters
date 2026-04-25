@@ -4,7 +4,7 @@ import type { AccessToken, ClientAuthAdapter, AuthState } from './types';
 export type SupportedAuth = {
   readonly name: string;
   /** Begin the login flow for this adapter via the service. */
-  login(): Promise<void>;
+  login(feature?: string): Promise<void>;
 };
 
 const REFRESH_LEEWAY_MS = 5 * 60 * 1000;
@@ -75,11 +75,22 @@ export class ClientAuthService {
   supportedAuths(): readonly SupportedAuth[] {
     return this.adapters.map((a) => ({
       name: a.name,
-      login: async () => {
-        this.cached = null;
-        await a.login();
+      login: async (feature?: string) => {
+        if (!feature || feature === 'login') this.cached = null;
+        await a.login(feature);
       },
     }));
+  }
+
+  /**
+   * Refresh a feature-scoped token. Unlike `getAccessToken()`, this does
+   * not affect the cached login token or auth state — it returns a
+   * one-off access token for the requested feature.
+   */
+  async refreshFeature(adapterName: string, feature: string, refreshToken: string): Promise<AccessToken | null> {
+    const adapter = this.byName.get(adapterName);
+    if (!adapter) return null;
+    return adapter.refresh(feature, refreshToken);
   }
 
   /**

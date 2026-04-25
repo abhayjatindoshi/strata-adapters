@@ -42,8 +42,10 @@ export type ClientAuthAdapter = {
    *   (the caller's JS context is unloaded).
    * - Popup/PKCE: resolves once the popup completes; the service then calls
    *   `refresh()` to materialise the access token.
+   *
+   * @param feature — scope group to request. Defaults to `'login'`.
    */
-  login(): Promise<void>;
+  login(feature?: string): Promise<void>;
 
   /**
    * Try to obtain a fresh access token from the server-held credential
@@ -51,8 +53,12 @@ export type ClientAuthAdapter = {
    * when no session exists or the refresh failed.
    *
    * The returned token's `name` must equal this adapter's `name`.
+   *
+   * @param feature — when set, refreshes a feature-scoped token using
+   *   the provided `refreshToken` instead of the login cookie.
+   * @param refreshToken — required when `feature` is set.
    */
-  refresh(): Promise<AccessToken | null>;
+  refresh(feature?: string, refreshToken?: string): Promise<AccessToken | null>;
 
   /** Best-effort revoke + clear server-side state. Never throws. */
   logout(): Promise<void>;

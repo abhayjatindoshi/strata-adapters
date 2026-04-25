@@ -20,6 +20,8 @@ export type ServerAuthServiceOptions = {
   readonly csrfCookieName: string;
   /** Path to redirect to after a successful login callback. */
   readonly loginRedirectPath: string;
+  /** Path to redirect to after a successful feature callback. */
+  readonly featureRedirectPath: string;
   /** Path to redirect to when the OAuth callback fails. */
   readonly errorRedirectPath: string;
 };
@@ -44,6 +46,7 @@ export class ServerAuthService {
   private readonly refreshCookieName: string;
   private readonly csrfCookieName: string;
   private readonly loginRedirectPath: string;
+  private readonly featureRedirectPath: string;
   private readonly errorRedirectPath: string;
   private readonly byName: ReadonlyMap<string, ServerAuthAdapter>;
 
@@ -60,6 +63,7 @@ export class ServerAuthService {
     this.refreshCookieName = options.refreshCookieName;
     this.csrfCookieName = options.csrfCookieName;
     this.loginRedirectPath = options.loginRedirectPath;
+    this.featureRedirectPath = options.featureRedirectPath;
     this.errorRedirectPath = options.errorRedirectPath;
   }
 
@@ -78,7 +82,7 @@ export class ServerAuthService {
       return this.handleLogin(url, adapter);
     }
 
-    if (method === 'POST' && path === '/refresh') return this.handleRefresh(request);
+    if (method === 'POST' && path === '/refresh') return this.handleRefresh(request, url);
     if (method === 'POST' && path === '/logout') return this.handleLogout(request);
 
     return new Response('Not found', { status: 404 });
@@ -132,6 +136,25 @@ export class ServerAuthService {
 
     if (!result.refreshToken) return this.redirectError();
 
+    const isFeature = state.feature !== 'login';
+
+    if (isFeature) {
+      // Feature callback: redirect to featureRedirectPath with token data
+      // as URL-encoded hash params. The client page reads them.
+      const params = new URLSearchParams({
+        access_token: result.accessToken,
+        refresh_token: result.refreshToken,
+        expires_in: String(result.expiresIn),
+        feature: state.feature,
+        provider: state.provider,
+      });
+      const headers = new Headers();
+      headers.set('Location', `${this.featureRedirectPath}#${params.toString()}`);
+      headers.append('Set-Cookie', setCookieHeader(this.csrfCookieName, '', 0));
+      return new Response(null, { status: 302, headers });
+    }
+
+    // Login callback: set refresh cookie and redirect
     const cookieValue = encodeRefreshCookie(adapter.name, result.refreshToken);
     const headers = new Headers();
     headers.append('Location', this.loginRedirectPath);
@@ -140,11 +163,45 @@ export class ServerAuthService {
     return new Response(null, { status: 302, headers });
   }
 
-  private async handleRefresh(request: Request): Promise<Response> {
+  private async handleRefresh(request: Request, url: URL): Promise<Response> {
+    const feature = url.searchParams.get('feature') ?? 'login';
+
+    // Verify the login cookie exists (authenticates the caller)
     const resolved = this.resolveFromCookie(request);
     if (!resolved) return errorResponse('No refresh token found', 401);
-    const { adapter, token } = resolved;
 
+    if (feature !== 'login') {
+      // Feature refresh: use the refresh token from the request body
+      const providerName = url.searchParams.get('provider');
+      const adapter = providerName ? this.byName.get(providerName) : undefined;
+      if (!adapter) return errorResponse('Unknown provider', 400);
+
+      let body;
+      try {
+        body = (await request.json()) as { refresh_token?: unknown };
+      } catch {
+        return errorResponse('Invalid request body', 400);
+      }
+      if (typeof body.refresh_token !== 'string') return errorResponse('Missing refresh_token', 400);
+
+      let result;
+      try {
+        result = await adapter.refresh(body.refresh_token);
+      } catch {
+        return errorResponse('Feature refresh failed', 401);
+      }
+
+      return jsonResponse({
+        access_token: result.accessToken,
+        expires_in: result.expiresIn,
+        refresh_token: result.refreshToken ?? body.refresh_token,
+        name: adapter.name,
+        feature,
+      });
+    }
+
+    // Login refresh: use the cookie token
+    const { adapter, token } = resolved;
     let result;
     try {
       result = await adapter.refresh(token);
