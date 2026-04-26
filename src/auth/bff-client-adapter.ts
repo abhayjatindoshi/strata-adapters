@@ -1,4 +1,4 @@
-import type { AccessToken, ClientAuthAdapter } from './types';
+import type { AccessToken, ClientAuthAdapter, FeatureCreds } from './types';
 
 export type BffClientAdapterConfig = {
   /** Provider name. Must match the matching `BffServerAdapter`'s `name`. */
@@ -94,5 +94,35 @@ export class BffClientAdapter implements ClientAuthAdapter {
 
   private url(path: string): string {
     return `${this.prefix}${path}?provider=${encodeURIComponent(this.name)}`;
+  }
+
+  /**
+   * BFF callback protocol: tokens arrive in the URL hash fragment.
+   * Parses `#access_token=...&refresh_token=...&feature=...&provider=...`,
+   * clears the hash from browser history, returns structured creds.
+   */
+  handleCallback(): FeatureCreds | null {
+    const hash = window.location.hash.slice(1);
+    if (!hash) return null;
+
+    const params = new URLSearchParams(hash);
+    const accessToken = params.get('access_token');
+    const refreshToken = params.get('refresh_token');
+    const expiresIn = params.get('expires_in');
+    const feature = params.get('feature');
+    const provider = params.get('provider');
+
+    if (!accessToken || !refreshToken || !feature || !provider) return null;
+
+    window.history.replaceState(null, '', window.location.pathname);
+
+    return {
+      accessToken,
+      refreshToken,
+      expiresIn: expiresIn ? Number(expiresIn) : 3600,
+      feature,
+      provider,
+      receivedAt: Date.now(),
+    };
   }
 }

@@ -1,5 +1,5 @@
 import { BehaviorSubject, distinctUntilChanged, type Observable } from 'rxjs';
-import type { AccessToken, ClientAuthAdapter, AuthState } from './types';
+import type { AccessToken, ClientAuthAdapter, AuthState, FeatureCreds } from './types';
 
 export type SupportedAuth = {
   readonly name: string;
@@ -25,10 +25,13 @@ export class ClientAuthService {
   private cached: AccessToken | null = null;
   private inflight: Promise<AccessToken | null> | null = null;
   private readonly state$$: BehaviorSubject<AuthState>;
+  private readonly returnUrlKey: string | undefined;
+  private readonly featureCredsKey: string | undefined;
   readonly state$: Observable<AuthState>;
 
   constructor(
     private readonly adapters: readonly ClientAuthAdapter[],
+    options?: { readonly returnUrlKey?: string; readonly featureCredsKey?: string },
   ) {
     const byName = new Map<string, ClientAuthAdapter>();
     for (const a of adapters) {
@@ -36,6 +39,8 @@ export class ClientAuthService {
       byName.set(a.name, a);
     }
     this.byName = byName;
+    this.returnUrlKey = options?.returnUrlKey;
+    this.featureCredsKey = options?.featureCredsKey;
     this.state$$ = new BehaviorSubject<AuthState>({ status: 'loading' });
     this.state$ = this.state$$.pipe(
       distinctUntilChanged((a, b) => a.status === b.status && a.name === b.name),
@@ -76,6 +81,9 @@ export class ClientAuthService {
     return this.adapters.map((a) => ({
       name: a.name,
       login: async (feature?: string) => {
+        if (this.returnUrlKey) {
+          sessionStorage.setItem(this.returnUrlKey, window.location.href);
+        }
         if (!feature || feature === 'login') this.cached = null;
         await a.login(feature);
       },
@@ -91,6 +99,44 @@ export class ClientAuthService {
     const adapter = this.byName.get(adapterName);
     if (!adapter) return null;
     return adapter.refresh(feature, refreshToken);
+  }
+
+  /**
+   * Reads and clears the saved return URL from sessionStorage.
+   * Returns the URL if one was saved before the last login redirect,
+   * or `fallback` if none was saved.
+   */
+  consumeReturnUrl(fallback = '/'): string {
+    if (!this.returnUrlKey) return fallback;
+    const raw = sessionStorage.getItem(this.returnUrlKey);
+    sessionStorage.removeItem(this.returnUrlKey);
+    if (!raw) return fallback;
+    try {
+      const url = new URL(raw);
+      return url.pathname + url.search + url.hash;
+    } catch {
+      return raw;
+    }
+  }
+
+  /**
+   * Processes the OAuth callback by delegating to each adapter's
+   * `handleCallback()`. Stores creds in sessionStorage if
+   * `featureCredsKey` is set. Returns the return URL and parsed creds.
+   */
+  handleCallback(fallbackUrl = '/'): { returnUrl: string; creds: FeatureCreds | null } {
+    const returnUrl = this.consumeReturnUrl(fallbackUrl);
+    for (const adapter of this.adapters) {
+      if (!adapter.handleCallback) continue;
+      const creds = adapter.handleCallback();
+      if (creds) {
+        if (this.featureCredsKey) {
+          sessionStorage.setItem(this.featureCredsKey, JSON.stringify(creds));
+        }
+        return { returnUrl, creds };
+      }
+    }
+    return { returnUrl, creds: null };
   }
 
   /**

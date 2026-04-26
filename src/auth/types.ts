@@ -62,6 +62,23 @@ export type ClientAuthAdapter = {
 
   /** Best-effort revoke + clear server-side state. Never throws. */
   logout(): Promise<void>;
+
+  /**
+   * Process the OAuth callback on the current page. Each adapter knows
+   * its own callback protocol (BFF: hash fragment, PKCE: query params).
+   * Returns parsed creds or `null` if no callback data is present.
+   * Clears callback data from the URL to prevent leaking tokens.
+   */
+  handleCallback?(): FeatureCreds | null;
+};
+
+export type FeatureCreds = {
+  readonly accessToken: string;
+  readonly refreshToken: string;
+  readonly expiresIn: number;
+  readonly feature: string;
+  readonly provider: string;
+  readonly receivedAt: number;
 };
 
 /**
