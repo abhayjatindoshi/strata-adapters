@@ -1,11 +1,5 @@
 import type { AccessToken } from '@strata-adapters/auth/types';
-import {
-  AuthExpiredError,
-  NotFoundError,
-  PermissionDeniedError,
-  RateLimitedError,
-  StrataError,
-} from '@strata-adapters/errors/strata-error';
+import { AuthExpiredError } from '@strata-adapters/errors/strata-error';
 import type { ErrorOperation } from '@strata-adapters/errors/strata-error';
 import type {
   CloudFile,
@@ -13,6 +7,7 @@ import type {
   CloudSpace,
 } from '@strata-adapters/cloud/cloud-file-service';
 import { GoogleDriveAdapter } from './google-drive-adapter';
+import { mapDriveError } from './google-drive-errors';
 
 const DRIVE_API = 'https://www.googleapis.com/drive/v3/files';
 const FOLDER_MIME = 'application/vnd.google-apps.folder';
@@ -114,6 +109,10 @@ export class GoogleDriveService extends GoogleDriveAdapter implements CloudFileS
           ? ['root']
           : undefined;
 
+    if (!parents) {
+      throw new Error(`Cannot create folder in "${space.id}" without a parent folder`);
+    }
+
     const res = await fetch(`${DRIVE_API}?fields=id,name,mimeType,modifiedTime,size`, {
       method: 'POST',
       headers: {
@@ -156,26 +155,3 @@ function escapeQ(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
 
-function mapDriveError(operation: ErrorOperation, response: Response): StrataError {
-  const message = `Google Drive API error during ${operation}: ${response.status} ${response.statusText}`;
-  switch (response.status) {
-    case 401:
-      return new AuthExpiredError(operation, new Error(message));
-    case 403:
-      return new PermissionDeniedError(operation, new Error(message));
-    case 404:
-      return new NotFoundError(operation, new Error(message));
-    case 429: {
-      const retry = response.headers.get('Retry-After');
-      const ms = retry && Number.isFinite(Number(retry)) ? Number(retry) * 1000 : undefined;
-      return new RateLimitedError(operation, ms, new Error(message));
-    }
-    default:
-      return new StrataError(message, {
-        kind: 'unknown',
-        operation,
-        retryable: response.status >= 500,
-        originalError: new Error(message),
-      });
-  }
-}

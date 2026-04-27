@@ -12,6 +12,5 @@ export const GOOGLE_DRIVE_SCOPES: readonly string[] = [
   'email',
   'profile',
   'https://www.googleapis.com/auth/drive',
-  'https://www.googleapis.com/auth/drive.readonly',
   'https://www.googleapis.com/auth/drive.appdata',
 ] as const;

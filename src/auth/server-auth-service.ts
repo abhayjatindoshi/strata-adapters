@@ -27,7 +27,7 @@ export type ServerAuthServiceOptions = {
 };
 
 const CSRF_MAX_AGE = 600;
-const REFRESH_MAX_AGE = 60 * 60 * 24 * 365;
+const REFRESH_MAX_AGE = 60 * 60 * 24 * 30;
 
 /**
  * Owns all HTTP handling for server-side auth: routing, cookies, CSRF,

@@ -1,20 +1,13 @@
 import type { StorageAdapter, Tenant } from 'strata-data-sync'
 import { compositeKey, fnvHash, generateId } from 'strata-data-sync'
 import type { AccessToken } from '@strata-adapters/auth/types'
-import type { ErrorOperation } from '@strata-adapters/errors/strata-error'
-import {
-  StrataError,
-  AuthExpiredError,
-  PermissionDeniedError,
-  NotFoundError,
-  RateLimitedError,
-  OfflineError,
-} from '@strata-adapters/errors/strata-error'
+import { AuthExpiredError } from '@strata-adapters/errors/strata-error'
+import { mapDriveError } from './google-drive-errors'
 
 const DRIVE_API = 'https://www.googleapis.com/drive/v3/files'
 const UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3/files'
 
-type DriveSpace = 'appDataFolder' | 'drive'
+type DriveSpace = 'appDataFolder' | 'drive' | 'sharedWithMe'
 
 type DriveMeta = {
   space: DriveSpace
@@ -28,6 +21,9 @@ function getDriveMeta(tenant: Tenant | undefined): DriveMeta {
   if (!space) throw new Error(`Tenant "${tenant.id}" missing required meta.space`)
   if (space === 'drive' && !meta.folderId) {
     throw new Error(`Tenant "${tenant.id}" with space "drive" requires meta.folderId`)
+  }
+  if (space === 'sharedWithMe' && !meta.folderId) {
+    throw new Error(`Tenant "${tenant.id}" with space "sharedWithMe" requires meta.folderId`)
   }
   return { space, folderId: meta.folderId }
 }
@@ -186,33 +182,5 @@ export class GoogleDriveAdapter implements StorageAdapter {
 
     if (fileId) this.fileIdCache.set(cacheKey, fileId)
     return fileId
-  }
-}
-
-function parseRetryAfter(response: Response): number | undefined {
-  const header = response.headers.get('Retry-After')
-  if (!header) return undefined
-  const seconds = Number(header)
-  return Number.isFinite(seconds) ? seconds * 1000 : undefined
-}
-
-function mapDriveError(operation: ErrorOperation, response: Response): StrataError {
-  const message = `Google Drive API error during ${operation}: ${response.status} ${response.statusText}`
-  switch (response.status) {
-    case 401:
-      return new AuthExpiredError(operation, new Error(message))
-    case 403:
-      return new PermissionDeniedError(operation, new Error(message))
-    case 404:
-      return new NotFoundError(operation, new Error(message))
-    case 429:
-      return new RateLimitedError(operation, parseRetryAfter(response), new Error(message))
-    default:
-      return new StrataError(message, {
-        kind: 'unknown',
-        operation,
-        retryable: response.status >= 500,
-        originalError: new Error(message),
-      })
   }
 }

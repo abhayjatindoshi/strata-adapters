@@ -96,7 +96,10 @@ export class Pbkdf2EncryptionService implements EncryptionService {
 
   async loadKeyData(keys: EncryptionKeys, data: Record<string, unknown>): Promise<EncryptionKeys> {
     const k = keys as Pbkdf2Keys;
-    const dek = await importAesGcmKey(data.dek as string);
+    if (typeof data.dek !== 'string') {
+      throw new Error('Invalid key data: expected dek to be a base64 string');
+    }
+    const dek = await importAesGcmKey(data.dek);
     return { kek: k.kek, dek, salt: k.salt } satisfies Pbkdf2Keys;
   }
 

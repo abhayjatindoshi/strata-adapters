@@ -29,10 +29,10 @@ export class LocalStorageAdapter implements StorageAdapter {
         toBase64(data),
       );
     } catch (e) {
-      const message = e instanceof Error ? e.message : String(e);
-      if (message.includes('QuotaExceededError') || message.includes('quota')) {
-        throw new QuotaExceededError('write', e instanceof Error ? e : new Error(message));
+      if (e instanceof DOMException && (e.name === 'QuotaExceededError' || e.code === 22)) {
+        throw new QuotaExceededError('write', e);
       }
+      const message = e instanceof Error ? e.message : String(e);
       throw new Error(`localStorage write failed for key "${key}": ${message}`);
     }
   }

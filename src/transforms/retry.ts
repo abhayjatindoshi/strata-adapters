@@ -21,7 +21,7 @@ async function withRetries<T>(
       lastError = err instanceof Error ? err : new Error(String(err));
       if (attempt < maxRetries) {
         options.onRetry?.(attempt + 1, lastError);
-        await new Promise(r => setTimeout(r, delayMs * Math.pow(2, attempt)));
+        await new Promise(r => setTimeout(r, delayMs * Math.pow(2, attempt) * (0.5 + Math.random())));
       }
     }
   }
@@ -30,6 +30,7 @@ async function withRetries<T>(
 
 export function withRetry(adapter: StorageAdapter, options: RetryOptions = {}): StorageAdapter {
   return {
+    ...adapter,
     async read(tenant: Tenant | undefined, key: string): Promise<Uint8Array | null> {
       return withRetries(() => adapter.read(tenant, key), options);
     },
