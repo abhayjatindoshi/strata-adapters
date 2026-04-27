@@ -58,8 +58,13 @@ describe('GoogleDriveAdapter', () => {
   });
 
   describe('deriveTenantId', () => {
-    it('returns folderId from meta', () => {
-      expect(adapter.deriveTenantId({ folderId: 'abc-123' })).toBe('abc-123');
+    it('returns hashed folderId from meta', () => {
+      const id = adapter.deriveTenantId({ folderId: 'abc-123' });
+      expect(id).toHaveLength(6);
+      // Deterministic: same input always produces same hash
+      expect(adapter.deriveTenantId({ folderId: 'abc-123' })).toBe(id);
+      // Different input produces different hash
+      expect(adapter.deriveTenantId({ folderId: 'xyz-456' })).not.toBe(id);
     });
 
     it('throws when folderId is missing', () => {

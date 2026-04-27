@@ -1,5 +1,5 @@
 import type { StorageAdapter, Tenant } from 'strata-data-sync'
-import { compositeKey } from 'strata-data-sync'
+import { compositeKey, fnvHash, generateId } from 'strata-data-sync'
 import type { AccessToken } from '@strata-adapters/auth/types'
 import type { ErrorOperation } from '@strata-adapters/errors/strata-error'
 import {
@@ -54,8 +54,8 @@ export class GoogleDriveAdapter implements StorageAdapter {
 
   deriveTenantId(meta: Record<string, unknown>): string {
     const folderId = meta.folderId as string | undefined
-    if (!folderId) throw new Error('Cannot derive tenant ID: meta.folderId is required')
-    return folderId
+    if (!folderId) return generateId()
+    return fnvHash(folderId)
   }
 
   async read(tenant: Tenant | undefined, key: string): Promise<Uint8Array | null> {
