@@ -25,7 +25,7 @@ async function withRetries<T>(
       }
     }
   }
-  throw lastError;
+  throw lastError ?? new Error('retry failed');
 }
 
 export function withRetry(adapter: StorageAdapter, options: RetryOptions = {}): StorageAdapter {

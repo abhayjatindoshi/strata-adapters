@@ -32,7 +32,7 @@ export class Pbkdf2EncryptionService implements EncryptionService {
     this.markerKey = options.markerKey ?? '__strata';
   }
 
-  private castKeys(keys: EncryptionKeys | null): Pbkdf2Keys | null {
+  private castKeys(keys: EncryptionKeys): Pbkdf2Keys | null {
     if (keys === null) return null;
     if (typeof keys !== 'object' || !('kek' in (keys as Record<string, unknown>))) {
       throw new Error('Invalid encryption keys: expected Pbkdf2Keys with kek property');
@@ -40,7 +40,7 @@ export class Pbkdf2EncryptionService implements EncryptionService {
     return keys as Pbkdf2Keys;
   }
 
-  async encrypt(blobKey: string, data: Uint8Array, keys: EncryptionKeys | null): Promise<Uint8Array> {
+  async encrypt(blobKey: string, data: Uint8Array, keys: EncryptionKeys): Promise<Uint8Array> {
     if (blobKey === this.tenantKey) return data;
     const k = this.castKeys(keys);
     if (!k) return data;
@@ -55,7 +55,7 @@ export class Pbkdf2EncryptionService implements EncryptionService {
     return this.strategy.encrypt(data, k.dek);
   }
 
-  async decrypt(blobKey: string, data: Uint8Array, keys: EncryptionKeys | null): Promise<Uint8Array> {
+  async decrypt(blobKey: string, data: Uint8Array, keys: EncryptionKeys): Promise<Uint8Array> {
     if (blobKey === this.tenantKey) return data;
     const k = this.castKeys(keys);
     if (!k) return data;

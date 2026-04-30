@@ -49,8 +49,8 @@ export class GoogleDriveService extends GoogleDriveAdapter implements CloudFileS
     this.tokenSupplier = getAccessToken;
   }
 
-  async getSpaces(_signal?: AbortSignal): Promise<readonly CloudSpace[]> {
-    return ALL_SPACES;
+  getSpaces(_signal?: AbortSignal): Promise<readonly CloudSpace[]> {
+    return Promise.resolve(ALL_SPACES);
   }
 
   async getListing(

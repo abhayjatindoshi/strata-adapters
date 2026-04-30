@@ -92,7 +92,7 @@ export class ServerAuthService {
 
   private handleLogin(url: URL, adapter: ServerAuthAdapter): Response {
     const feature = url.searchParams.get('feature') ?? 'login';
-    const scopes = adapter.scopes[feature];
+    const scopes = adapter.scopes[feature] as string[] | undefined;
     if (!scopes) return errorResponse(`Unknown feature: ${feature}`, 400);
 
     const { state, csrf } = generateState(adapter.name, feature);

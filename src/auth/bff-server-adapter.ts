@@ -26,7 +26,7 @@ export class BffServerAdapter implements ServerAuthAdapter {
   }
 
   login(state: string, feature: string): string {
-    const scopes = this.scopes[feature];
+    const scopes = this.scopes[feature] as string[] | undefined;
     if (!scopes) throw new Error(`Unknown feature: ${feature}`);
     const url = new URL(this.config.endpoints.authUrl);
     url.searchParams.set('client_id', this.config.clientId);

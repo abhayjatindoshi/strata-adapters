@@ -14,15 +14,15 @@ export class PkceClientAdapter implements ClientAuthAdapter {
     this.name = config.name;
   }
 
-  async login(): Promise<void> {
-    throw new Error(NOT_IMPLEMENTED);
+  login(): Promise<void> {
+    return Promise.reject(new Error(NOT_IMPLEMENTED));
   }
 
-  async logout(): Promise<void> {
-    throw new Error(NOT_IMPLEMENTED);
+  logout(): Promise<void> {
+    return Promise.reject(new Error(NOT_IMPLEMENTED));
   }
 
-  async refresh(): Promise<AccessToken | null> {
-    return null;
+  refresh(): Promise<AccessToken | null> {
+    return Promise.resolve(null);
   }
 }
