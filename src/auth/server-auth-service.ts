@@ -1,4 +1,5 @@
 import type { ServerAuthAdapter } from './types';
+import { log } from '@/log';
 import {
   generateState,
   parseState,
@@ -73,6 +74,8 @@ export class ServerAuthService {
     if (path === null) return new Response('Not found', { status: 404 });
 
     const method = request.method;
+
+    log.auth('%s %s', method, path);
 
     if (method === 'GET' && path === '/callback') return this.handleCallback(request, url);
 
@@ -155,6 +158,7 @@ export class ServerAuthService {
     }
 
     // Login callback: set refresh cookie and redirect
+    log.auth('callback succeeded for %s (feature=%s)', state.provider, state.feature);
     const cookieValue = encodeRefreshCookie(adapter.name, result.refreshToken);
     const headers = new Headers();
     headers.append('Location', this.loginRedirectPath);
@@ -215,6 +219,7 @@ export class ServerAuthService {
       responseHeaders['Set-Cookie'] = setCookieHeader(this.refreshCookieName, cookieValue, REFRESH_MAX_AGE);
     }
 
+    log.auth('login refresh succeeded for %s', adapter.name);
     return jsonResponse(
       { access_token: result.accessToken, expires_in: result.expiresIn, name: adapter.name },
       200,

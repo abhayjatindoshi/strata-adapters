@@ -1,4 +1,5 @@
 import type { AccessToken, ClientAuthAdapter, FeatureCreds } from './types';
+import { log } from '@/log';
 
 export type BffClientAdapterConfig = {
   /** Provider name. Must match the matching `BffServerAdapter`'s `name`. */
@@ -43,6 +44,7 @@ export class BffClientAdapter implements ClientAuthAdapter {
     const url = feature && feature !== 'login'
       ? this.url('/login') + `&feature=${encodeURIComponent(feature)}`
       : this.url('/login');
+    log.auth('login redirect for %s (feature=%s)', this.name, feature ?? 'login');
     window.location.href = url;
     await new Promise<void>(() => {
       /* never resolves; page is navigating away */
@@ -82,12 +84,14 @@ export class BffClientAdapter implements ClientAuthAdapter {
       if (typeof data.access_token !== 'string' || typeof data.expires_in !== 'number') {
         return null;
       }
+      log.auth('refresh succeeded for %s', this.name);
       return {
         name: typeof data.name === 'string' ? data.name : this.name,
         token: data.access_token,
         expiresAt: Date.now() + data.expires_in * 1000,
       };
     } catch {
+      log.auth.warn('refresh failed for %s', this.name);
       return null;
     }
   }

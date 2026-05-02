@@ -1,6 +1,7 @@
 import type { AccessToken } from '@/auth/types';
 import { AuthExpiredError } from '@/errors/strata-error';
 import type { ErrorOperation } from '@/errors/strata-error';
+import { log } from '@/log';
 import type {
   CloudFile,
   CloudFileService,
@@ -90,7 +91,9 @@ export class GoogleDriveService extends GoogleDriveAdapter implements CloudFileS
     if (!res.ok) throw mapDriveError('read', res);
 
     const body = (await res.json()) as { readonly files?: readonly DriveFileRaw[] };
-    return (body.files ?? []).map(toCloudFile);
+    const files = (body.files ?? []).map(toCloudFile);
+    log.storage.google('listing %s/%s → %d files', space.id, parentId ?? 'root', files.length);
+    return files;
   }
 
   async createFolder(
@@ -125,6 +128,7 @@ export class GoogleDriveService extends GoogleDriveAdapter implements CloudFileS
     if (!res.ok) throw mapDriveError('write', res);
 
     const raw = (await res.json()) as DriveFileRaw;
+    log.storage.google('created folder %s (id=%s)', name, raw.id);
     return toCloudFile(raw);
   }
 

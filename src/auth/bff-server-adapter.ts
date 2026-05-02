@@ -1,4 +1,5 @@
 import type { ServerAuthAdapter, ServerAuthTokenResult, OAuthEndpoints } from './types';
+import { log } from '@/log';
 
 export type BffServerAdapterConfig = {
   readonly name: string;
@@ -45,6 +46,7 @@ export class BffServerAdapter implements ServerAuthAdapter {
       redirect_uri: this.config.callbackUrl,
       grant_type: 'authorization_code',
     });
+    log.auth('code exchanged for %s', this.name);
     return { accessToken: r.access_token, expiresIn: r.expires_in, refreshToken: r.refresh_token };
   }
 
@@ -79,7 +81,10 @@ export class BffServerAdapter implements ServerAuthAdapter {
         ...params,
       }),
     });
-    if (!response.ok) throw new Error(`Token request failed: ${response.status}`);
+    if (!response.ok) {
+      log.auth.error('token request failed: %d', response.status);
+      throw new Error(`Token request failed: ${response.status}`);
+    }
     return (await response.json()) as { access_token: string; refresh_token?: string; expires_in: number };
   }
 }

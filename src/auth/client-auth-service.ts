@@ -1,5 +1,6 @@
 import { BehaviorSubject, distinctUntilChanged, type Observable } from 'rxjs';
 import type { AccessToken, ClientAuthAdapter, AuthState, FeatureCreds } from './types';
+import { log } from '@/log';
 
 export type SupportedAuth = {
   readonly name: string;
@@ -49,6 +50,7 @@ export class ClientAuthService {
     // Probe adapters so state$ transitions from 'loading' to
     // 'signed-in' or 'signed-out' without waiting for the first
     // explicit getAccessToken() call.
+    log.auth('initialized with %d adapters', adapters.length);
     void this.getAccessToken();
   }
 
@@ -148,6 +150,7 @@ export class ClientAuthService {
     const adapter = name ? this.byName.get(name) : undefined;
     this.cached = null;
     this.emit();
+    log.auth('logout, adapter=%s', name ?? 'all');
     if (adapter) {
       await adapter.logout();
     } else {
@@ -169,10 +172,12 @@ export class ClientAuthService {
       }
       if (refreshed) {
         this.cached = refreshed;
+        log.auth('refreshed via adapter %s', adapter.name);
         this.emit();
         return this.cached;
       }
     }
+    log.auth('all adapters failed refresh');
     this.cached = null;
     this.emit();
     return null;

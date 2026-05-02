@@ -3,6 +3,7 @@ import { compositeKey, fnvHash, generateId } from '@strata/core'
 import type { AccessToken } from '@/auth/types'
 import { AuthExpiredError } from '@/errors/strata-error'
 import { mapDriveError } from './google-drive-errors'
+import { log } from '@/log'
 
 const DRIVE_API = 'https://www.googleapis.com/drive/v3/files'
 const UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3/files'
@@ -69,6 +70,7 @@ export class GoogleDriveAdapter implements StorageAdapter {
     }
     if (!response.ok) throw mapDriveError('read', response)
 
+    log.storage.google('read %s (%d bytes)', key, (await response.clone().arrayBuffer()).byteLength)
     return new Uint8Array(await response.arrayBuffer())
   }
 
@@ -86,6 +88,7 @@ export class GoogleDriveAdapter implements StorageAdapter {
         body: data as BodyInit,
       })
       if (!response.ok) throw mapDriveError('write', response)
+      log.storage.google('updated %s', key)
     } else {
       const { space, folderId } = getDriveMeta(tenant)
       const metadata: Record<string, unknown> = { name: compositeKey(tenant, key) }
@@ -123,6 +126,7 @@ export class GoogleDriveAdapter implements StorageAdapter {
 
       const result = (await response.json()) as { id: string }
       this.fileIdCache.set(compositeKey(tenant, key), result.id)
+      log.storage.google('created %s (fileId=%s)', key, result.id)
     }
   }
 
@@ -142,13 +146,17 @@ export class GoogleDriveAdapter implements StorageAdapter {
     }
     if (!response.ok) throw mapDriveError('delete', response)
     this.fileIdCache.delete(compositeKey(tenant, key))
+    log.storage.google('deleted %s', key)
     return true
   }
 
   private async resolveFileId(tenant: Tenant | undefined, key: string): Promise<string | null> {
     const cacheKey = compositeKey(tenant, key)
     const cached = this.fileIdCache.get(cacheKey)
-    if (cached) return cached
+    if (cached) {
+      log.storage.google('resolve cache hit %s → %s', cacheKey, cached)
+      return cached
+    }
 
     const { space, folderId } = getDriveMeta(tenant)
     const fileName = cacheKey

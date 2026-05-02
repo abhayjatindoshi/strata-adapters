@@ -1,6 +1,7 @@
 import { BehaviorSubject, distinctUntilChanged, type Observable, type Subscription } from 'rxjs';
 import type { StorageAdapter } from '@strata/core';
 import type { ClientAuthService } from '@/auth/client-auth-service';
+import { log } from '@/log';
 
 /** A named storage adapter — the name matches the auth adapter name. */
 export type CloudAdapter = StorageAdapter & {
@@ -37,8 +38,11 @@ export class CloudService {
 
     this.sub = auth.state$.subscribe((state) => {
       if (state.status === 'signed-in' && state.name) {
-        this.active$$.next(byName.get(state.name) ?? null);
+        const adapter = byName.get(state.name) ?? null;
+        log.cloud('active adapter → %s', adapter?.name ?? 'none');
+        this.active$$.next(adapter);
       } else {
+        log.cloud('active adapter → none (signed-out)');
         this.active$$.next(null);
       }
     });

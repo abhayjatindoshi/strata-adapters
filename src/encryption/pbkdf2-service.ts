@@ -1,10 +1,8 @@
-import debug from 'debug';
 import type { EncryptionStrategy, EncryptionService, EncryptionKeys } from '@strata/core';
 import {
   pbkdf2DeriveKeyWithSalt, aesGcmGenerateKey, exportCryptoKey, importAesGcmKey,
 } from './crypto';
-
-const log = debug('strata:encryption');
+import { log } from '@/log';
 
 const SALT_LENGTH = 16;
 
@@ -80,7 +78,7 @@ export class Pbkdf2EncryptionService implements EncryptionService {
     fullSalt.set(salt, 0);
     fullSalt.set(appIdBytes, salt.length);
     const kek = await pbkdf2DeriveKeyWithSalt(credential, fullSalt);
-    log('KEK derived for app %s', appId);
+    log.crypto('KEK derived for app %s', appId);
     return { kek, dek: null, salt } satisfies Pbkdf2Keys;
   }
 

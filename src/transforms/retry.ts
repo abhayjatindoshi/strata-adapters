@@ -1,4 +1,7 @@
 import type { StorageAdapter, Tenant } from '@strata/core';
+import { StrataError } from '@strata/core';
+import { RateLimitedError } from '../errors/strata-error';
+import { log } from '@/log';
 
 export type RetryOptions = {
   readonly maxRetries?: number;
@@ -20,11 +23,14 @@ async function withRetries<T>(
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
       if (attempt < maxRetries) {
+        const delay = delayMs * Math.pow(2, attempt) * (0.5 + Math.random());
+        log.transform('retry attempt %d/%d (delay=%dms): %s', attempt + 1, maxRetries, Math.round(delay), lastError.message);
         options.onRetry?.(attempt + 1, lastError);
-        await new Promise(r => setTimeout(r, delayMs * Math.pow(2, attempt) * (0.5 + Math.random())));
+        await new Promise(r => setTimeout(r, delay));
       }
     }
   }
+  log.transform.error('giving up after %d attempts', maxRetries + 1);
   throw lastError ?? new Error('retry failed');
 }
 

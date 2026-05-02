@@ -1,6 +1,7 @@
 import type { StorageAdapter, Tenant } from '@strata/core';
 import { compositeKey, toBase64, fromBase64 } from '@strata/core';
 import { QuotaExceededError } from '@/errors/strata-error';
+import { log } from '@/log';
 
 export class LocalStorageAdapter implements StorageAdapter {
 
@@ -19,6 +20,7 @@ export class LocalStorageAdapter implements StorageAdapter {
       this.prefixedKey(compositeKey(tenant, key)),
     );
     if (stored === null) return Promise.resolve(null);
+    log.storage.local('read %s', compositeKey(tenant, key));
     return Promise.resolve(fromBase64(stored));
   }
 
@@ -28,6 +30,7 @@ export class LocalStorageAdapter implements StorageAdapter {
         this.prefixedKey(compositeKey(tenant, key)),
         toBase64(data),
       );
+      log.storage.local('write %s (%d bytes)', compositeKey(tenant, key), data.length);
     } catch (e) {
       if (e instanceof DOMException && e.name === 'QuotaExceededError') {
         throw new QuotaExceededError('write', e);
@@ -42,6 +45,7 @@ export class LocalStorageAdapter implements StorageAdapter {
     const pk = this.prefixedKey(compositeKey(tenant, key));
     const existed = globalThis.localStorage.getItem(pk) !== null;
     globalThis.localStorage.removeItem(pk);
+    if (existed) log.storage.local('deleted %s', pk);
     return Promise.resolve(existed);
   }
 }
