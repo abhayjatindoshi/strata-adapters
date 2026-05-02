@@ -1,5 +1,5 @@
 {
-  "name": "strata-adapters",
+  "name": "@strata/plugins",
   "version": "0.1.2",
   "description": "External-service adapters for strata-data-sync — cloud storage, local persistence, and encryption implementations",
   "homepage": "https://github.com/abhayjatindoshi/strata-adapters#readme",
@@ -37,14 +37,14 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json --resolve-full-paths",
-    "dev": "tsc -p tsconfig.build.json --watch",
+    "build": "tsup",
+    "dev": "tsup --watch",
     "lint": "eslint .",
     "test": "vitest run"
   },
   "peerDependencies": {
     "rxjs": "^7.8.2",
-    "strata-data-sync": "file:../strata-data-sync"
+    "@strata/core": "^0.1.6"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -53,8 +53,8 @@
     "@vitest/coverage-v8": "^4.1.1",
     "eslint": "^10.2.1",
     "rxjs": "^7.8.2",
-    "strata-data-sync": "file:../strata-data-sync",
-    "tsc-alias": "^1.8.16",
+    "@strata/core": "^0.1.6",
+    "tsup": "^8",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.59.1",
     "vitest": "^4.1.0"

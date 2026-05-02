@@ -1,7 +1,7 @@
-import { StrataError, type ErrorOperation } from 'strata-data-sync';
+import { StrataError, type ErrorOperation } from '@strata/core';
 
-export type { ErrorOperation } from 'strata-data-sync';
-export { StrataError } from 'strata-data-sync';
+export type { ErrorOperation } from '@strata/core';
+export { StrataError } from '@strata/core';
 
 export type ErrorKind =
   | 'auth-expired'

@@ -1,11 +1,11 @@
-import type { ErrorOperation } from '@strata-adapters/errors/strata-error';
+import type { ErrorOperation } from '@/errors/strata-error';
 import {
   StrataError,
   AuthExpiredError,
   PermissionDeniedError,
   NotFoundError,
   RateLimitedError,
-} from '@strata-adapters/errors/strata-error';
+} from '@/errors/strata-error';
 
 export function parseRetryAfter(response: Response): number | undefined {
   const header = response.headers.get('Retry-After');

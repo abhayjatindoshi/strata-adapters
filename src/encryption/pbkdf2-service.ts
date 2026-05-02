@@ -1,5 +1,5 @@
 import debug from 'debug';
-import type { EncryptionStrategy, EncryptionService, EncryptionKeys } from 'strata-data-sync';
+import type { EncryptionStrategy, EncryptionService, EncryptionKeys } from '@strata/core';
 import {
   pbkdf2DeriveKeyWithSalt, aesGcmGenerateKey, exportCryptoKey, importAesGcmKey,
 } from './crypto';

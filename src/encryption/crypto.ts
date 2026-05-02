@@ -1,4 +1,4 @@
-import { toArrayBuffer, toBase64, fromBase64 } from 'strata-data-sync';
+import { toArrayBuffer, toBase64, fromBase64 } from '@strata/core';
 
 // ─── Constants ───────────────────────────────────────────
 

@@ -1,4 +1,4 @@
-import type { StorageAdapter } from 'strata-data-sync';
+import type { StorageAdapter } from '@strata/core';
 
 /** Top-level logical partition within a cloud (e.g. "My Drive"). */
 export type CloudSpace = {

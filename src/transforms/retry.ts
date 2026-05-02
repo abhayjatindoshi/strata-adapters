@@ -1,4 +1,4 @@
-import type { StorageAdapter, Tenant } from 'strata-data-sync';
+import type { StorageAdapter, Tenant } from '@strata/core';
 
 export type RetryOptions = {
   readonly maxRetries?: number;

@@ -1,5 +1,5 @@
-import type { StorageAdapter, Tenant } from 'strata-data-sync';
-import { toArrayBuffer, streamToUint8Array } from 'strata-data-sync';
+import type { StorageAdapter, Tenant } from '@strata/core';
+import { toArrayBuffer, streamToUint8Array } from '@strata/core';
 
 const GZIP_MARKER = new Uint8Array([0x00, 0x47, 0x5A]); // \0GZ
 

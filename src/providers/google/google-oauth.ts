@@ -1,4 +1,4 @@
-import type { OAuthEndpoints } from '@strata-adapters/auth/types';
+import type { OAuthEndpoints } from '@/auth/types';
 
 export const GOOGLE_OAUTH_ENDPOINTS: OAuthEndpoints = {
   authUrl: 'https://accounts.google.com/o/oauth2/v2/auth',

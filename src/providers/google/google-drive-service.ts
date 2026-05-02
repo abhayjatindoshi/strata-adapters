@@ -1,11 +1,11 @@
-import type { AccessToken } from '@strata-adapters/auth/types';
-import { AuthExpiredError } from '@strata-adapters/errors/strata-error';
-import type { ErrorOperation } from '@strata-adapters/errors/strata-error';
+import type { AccessToken } from '@/auth/types';
+import { AuthExpiredError } from '@/errors/strata-error';
+import type { ErrorOperation } from '@/errors/strata-error';
 import type {
   CloudFile,
   CloudFileService,
   CloudSpace,
-} from '@strata-adapters/cloud/cloud-file-service';
+} from '@/cloud/cloud-file-service';
 import { GoogleDriveAdapter } from './google-drive-adapter';
 import { mapDriveError } from './google-drive-errors';
 

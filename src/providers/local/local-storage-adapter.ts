@@ -1,6 +1,6 @@
-import type { StorageAdapter, Tenant } from 'strata-data-sync';
-import { compositeKey, toBase64, fromBase64 } from 'strata-data-sync';
-import { QuotaExceededError } from '@strata-adapters/errors/strata-error';
+import type { StorageAdapter, Tenant } from '@strata/core';
+import { compositeKey, toBase64, fromBase64 } from '@strata/core';
+import { QuotaExceededError } from '@/errors/strata-error';
 
 export class LocalStorageAdapter implements StorageAdapter {
 

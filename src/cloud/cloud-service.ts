@@ -1,6 +1,6 @@
 import { BehaviorSubject, distinctUntilChanged, type Observable, type Subscription } from 'rxjs';
-import type { StorageAdapter } from 'strata-data-sync';
-import type { ClientAuthService } from '@strata-adapters/auth/client-auth-service';
+import type { StorageAdapter } from '@strata/core';
+import type { ClientAuthService } from '@/auth/client-auth-service';
 
 /** A named storage adapter — the name matches the auth adapter name. */
 export type CloudAdapter = StorageAdapter & {

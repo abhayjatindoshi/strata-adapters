@@ -1,7 +1,7 @@
-import type { StorageAdapter, Tenant } from 'strata-data-sync'
-import { compositeKey, fnvHash, generateId } from 'strata-data-sync'
-import type { AccessToken } from '@strata-adapters/auth/types'
-import { AuthExpiredError } from '@strata-adapters/errors/strata-error'
+import type { StorageAdapter, Tenant } from '@strata/core'
+import { compositeKey, fnvHash, generateId } from '@strata/core'
+import type { AccessToken } from '@/auth/types'
+import { AuthExpiredError } from '@/errors/strata-error'
 import { mapDriveError } from './google-drive-errors'
 
 const DRIVE_API = 'https://www.googleapis.com/drive/v3/files'
