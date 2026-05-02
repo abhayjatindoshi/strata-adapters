@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
-import type { Tenant } from 'strata-data-sync';
-import { GoogleDriveAdapter } from '@strata-adapters/providers/google/google-drive-adapter';
+import type { Tenant } from '@strata/core';
+import { GoogleDriveAdapter } from '@/providers/google/google-drive-adapter';
 import {
-  PermissionDeniedError,
-  AuthExpiredError,
+  StorageError,
+  StrataPluginConfigError,
   StrataError,
-} from '@strata-adapters/errors/strata-error';
+} from '@/errors/strata-error';
 
 const DRIVE_API = 'https://www.googleapis.com/drive/v3/files';
 const UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3/files';
@@ -67,8 +67,10 @@ describe('GoogleDriveAdapter', () => {
       expect(adapter.deriveTenantId({ folderId: 'xyz-456' })).not.toBe(id);
     });
 
-    it('throws when folderId is missing', () => {
-      expect(() => adapter.deriveTenantId({})).toThrow('meta.folderId is required');
+    it('returns random id when folderId is missing', () => {
+      const id = adapter.deriveTenantId({});
+      expect(typeof id).toBe('string');
+      expect(id.length).toBeGreaterThan(0);
     });
   });
 
@@ -114,7 +116,7 @@ describe('GoogleDriveAdapter', () => {
       mockFetch.mockResolvedValueOnce(errorResponse(500, 'Internal Server Error'));
 
       await expect(adapter.read(appDataTenant, 'key1')).rejects.toThrow(
-        'Google Drive API error during read: 500 Internal Server Error',
+        'Google Drive API error: 500 Internal Server Error',
       );
     });
 
@@ -196,7 +198,7 @@ describe('GoogleDriveAdapter', () => {
       mockFetch.mockResolvedValueOnce(errorResponse(403, 'Forbidden'));
 
       await expect(adapter.write(appDataTenant, 'doc', new Uint8Array([1]))).rejects.toThrow(
-        PermissionDeniedError,
+        StorageError,
       );
     });
 
@@ -266,7 +268,7 @@ describe('GoogleDriveAdapter', () => {
       mockFetch.mockResolvedValueOnce(errorResponse(500, 'Internal Server Error'));
 
       await expect(adapter.delete(appDataTenant, 'key1')).rejects.toThrow(
-        'Google Drive API error during delete: 500 Internal Server Error',
+        'Google Drive API error: 500 Internal Server Error',
       );
     });
 
@@ -316,7 +318,7 @@ describe('GoogleDriveAdapter', () => {
       mockFetch.mockResolvedValueOnce(errorResponse(401, 'Unauthorized'));
 
       await expect(adapter.read(appDataTenant, 'key1')).rejects.toThrow(
-        AuthExpiredError,
+        StorageError,
       );
     });
 

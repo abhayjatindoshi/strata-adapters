@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import type { Tenant } from 'strata-data-sync';
-import { LocalStorageAdapter } from '@strata-adapters/providers/local/local-storage-adapter';
-import { QuotaExceededError } from '@strata-adapters/errors/strata-error';
+import type { Tenant } from '@strata/core';
+import { LocalStorageAdapter } from '@/providers/local/local-storage-adapter';
+import { StorageError } from '@/errors/strata-error';
 
 // Minimal localStorage polyfill for Node
 function createLocalStoragePolyfill(): Storage {
@@ -80,23 +80,36 @@ describe('LocalStorageAdapter', () => {
       expect(result).toEqual(new Uint8Array([2]));
     });
 
-    it('throws QuotaExceededError on quota errors', async () => {
+    it('throws StorageError on quota errors', async () => {
       const orig = globalThis.localStorage.setItem;
-      globalThis.localStorage.setItem = () => { throw new Error('QuotaExceededError'); };
+      const domErr = new DOMException('quota', 'QuotaExceededError');
+      globalThis.localStorage.setItem = () => { throw domErr; };
       try {
-        await expect(adapter.write(tenant, 'k', new Uint8Array([1])))
-          .rejects.toThrow(QuotaExceededError);
+        let caught: unknown;
+        try {
+          await adapter.write(tenant, 'k', new Uint8Array([1]));
+        } catch (e) {
+          caught = e;
+        }
+        expect(caught).toBeInstanceOf(StorageError);
+        expect((caught as StorageError).kind).toBe('quota-exceeded');
       } finally {
         globalThis.localStorage.setItem = orig;
       }
     });
 
-    it('wraps non-Error thrown values', async () => {
+    it('wraps non-quota errors', async () => {
       const orig = globalThis.localStorage.setItem;
-      globalThis.localStorage.setItem = () => { throw 'string error'; };
+      globalThis.localStorage.setItem = () => { throw new Error('disk full'); };
       try {
-        await expect(adapter.write(tenant, 'k', new Uint8Array([1])))
-          .rejects.toThrow('localStorage write failed for key "k": string error');
+        let caught: unknown;
+        try {
+          await adapter.write(tenant, 'k', new Uint8Array([1]));
+        } catch (e) {
+          caught = e;
+        }
+        expect(caught).toBeInstanceOf(Error);
+        expect((caught as Error).message).toContain('localStorage write failed');
       } finally {
         globalThis.localStorage.setItem = orig;
       }

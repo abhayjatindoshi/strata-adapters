@@ -19,18 +19,6 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    },
-    "./cloud": {
-      "types": "./dist/cloud/index.d.ts",
-      "import": "./dist/cloud/index.js"
-    },
-    "./providers/google": {
-      "types": "./dist/providers/google/index.d.ts",
-      "import": "./dist/providers/google/index.js"
-    },
-    "./providers/local": {
-      "types": "./dist/providers/local/index.d.ts",
-      "import": "./dist/providers/local/index.js"
     }
   },
   "files": [
@@ -55,7 +43,7 @@
     "rxjs": "^7.8.2",
     "@strata/core": "^0.1.6",
     "tsup": "^8",
-    "typescript": "^5.9.3",
+    "typescript": "~6.0.2",
     "typescript-eslint": "^8.59.1",
     "vitest": "^4.1.0"
   },

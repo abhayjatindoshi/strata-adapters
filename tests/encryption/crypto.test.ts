@@ -6,8 +6,8 @@ import {
   importAesGcmKey,
   aesGcmEncrypt,
   aesGcmDecrypt,
-} from 'strata-data-sync';
-import { InvalidEncryptionKeyError } from 'strata-data-sync';
+} from '@/encryption/crypto';
+import { InvalidEncryptionKeyError } from '@strata/core';
 
 describe('Encryption primitives', () => {
   const appId = 'test-app';

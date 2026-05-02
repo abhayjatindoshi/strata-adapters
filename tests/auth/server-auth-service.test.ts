@@ -1,58 +1,62 @@
 import { describe, it, expect, vi } from 'vitest';
-import { ServerAuthService } from '@strata-adapters/auth/server-auth-service';
-import type { ServerAuthAdapter } from '@strata-adapters/auth/server-auth-adapter';
+import { ServerAuthService } from '@/auth/server-auth-service';
+import type { ServerAuthAdapter } from '@/auth/types';
 
-function adapter(name: string, paths: readonly string[]): ServerAuthAdapter {
+const DEFAULT_OPTS = {
+  basePath: '/api/auth',
+  refreshCookieName: 'refresh',
+  csrfCookieName: 'csrf',
+  loginRedirectPath: '/',
+  featureRedirectPath: '/',
+  errorRedirectPath: '/error',
+} as const;
+
+function adapter(name: string): ServerAuthAdapter {
   return {
     name,
-    handle: vi.fn(async (_req: Request, path: string) => {
-      if (paths.includes(path)) return new Response(`${name}:${path}`);
-      return null;
-    }),
+    scopes: { login: ['openid'] },
+    login: vi.fn((_state: string, _feature: string) => `https://auth.example.com/login?provider=${name}`),
+    exchangeCode: vi.fn(async () => ({ accessToken: 'tok', expiresIn: 3600 })),
+    refresh: vi.fn(async () => ({ accessToken: 'tok2', expiresIn: 3600 })),
+    logout: vi.fn(async () => {}),
   };
 }
 
 describe('ServerAuthService', () => {
   it('throws on duplicate adapter names', () => {
-    const a: ServerAuthAdapter = { name: 'g', handle: async () => null };
-    const b: ServerAuthAdapter = { name: 'g', handle: async () => null };
-    expect(() => new ServerAuthService([a, b])).toThrow(/duplicate adapter name "g"/);
+    const a = adapter('g');
+    const b = adapter('g');
+    expect(() => new ServerAuthService([a, b], DEFAULT_OPTS)).toThrow(/duplicate adapter name "g"/);
   });
 
   it('returns 404 when path is outside basePath', async () => {
-    const svc = new ServerAuthService([adapter('g', ['/login'])], { basePath: '/api/auth' });
+    const svc = new ServerAuthService([adapter('g')], DEFAULT_OPTS);
     const res = await svc.fetch(new Request('https://example.com/missing'));
     expect(res.status).toBe(404);
   });
 
-  it('strips basePath and forwards relative path to adapter.handle', async () => {
-    const a = adapter('g', ['/login']);
-    const svc = new ServerAuthService([a], { basePath: '/api/auth' });
+  it('routes /login to the correct adapter', async () => {
+    const svc = new ServerAuthService([adapter('g')], DEFAULT_OPTS);
     const res = await svc.fetch(new Request('https://example.com/api/auth/login?provider=g'));
-    expect(await res.text()).toBe('g:/login');
-    expect(a.handle).toHaveBeenCalledWith(expect.any(Request), '/login');
+    // login returns a redirect
+    expect(res.status).toBe(302);
   });
 
-  it('walks adapters until one returns a response', async () => {
-    const a = adapter('a', []);
-    const b = adapter('b', ['/login']);
-    const svc = new ServerAuthService([a, b]);
-    const res = await svc.fetch(new Request('https://example.com/login'));
-    expect(await res.text()).toBe('b:/login');
-    expect(a.handle).toHaveBeenCalled();
-    expect(b.handle).toHaveBeenCalled();
-  });
-
-  it('returns 404 when no adapter handles the request', async () => {
-    const svc = new ServerAuthService([adapter('a', [])]);
-    const res = await svc.fetch(new Request('https://example.com/foo'));
+  it('returns 404 when provider is missing on /login', async () => {
+    const svc = new ServerAuthService([adapter('a')], DEFAULT_OPTS);
+    const res = await svc.fetch(new Request('https://example.com/api/auth/login'));
     expect(res.status).toBe(404);
   });
 
-  it('treats a path equal to basePath as the empty relative path', async () => {
-    const a = adapter('g', ['']);
-    const svc = new ServerAuthService([a], { basePath: '/api/auth' });
+  it('returns 404 when no matching route', async () => {
+    const svc = new ServerAuthService([adapter('a')], DEFAULT_OPTS);
+    const res = await svc.fetch(new Request('https://example.com/api/auth/foo'));
+    expect(res.status).toBe(404);
+  });
+
+  it('returns 404 for basePath root', async () => {
+    const svc = new ServerAuthService([adapter('g')], DEFAULT_OPTS);
     const res = await svc.fetch(new Request('https://example.com/api/auth'));
-    expect(await res.text()).toBe('g:');
+    expect(res.status).toBe(404);
   });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
-import { BffClientAdapter } from '@strata-adapters/auth/bff-client-adapter';
+import { BffClientAdapter } from '@/auth/bff-client-adapter';
 
 const PREFIX = '/api/auth';
 const REFRESH_URL = `${PREFIX}/refresh`;
@@ -32,10 +32,9 @@ describe('BffClientAdapter', () => {
     vi.unstubAllGlobals();
   });
 
-  it('exposes name and label', () => {
+  it('exposes name', () => {
     const a = newAdapter();
     expect(a.name).toBe('google');
-    expect(a.label).toBe('Google');
   });
 
   it('refresh posts to /refresh and returns a tagged AccessToken', async () => {

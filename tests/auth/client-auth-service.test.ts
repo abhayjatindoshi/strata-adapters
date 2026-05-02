@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { firstValueFrom, skip, take } from 'rxjs';
-import { ClientAuthService } from '@strata-adapters/auth/client-auth-service';
-import type { ClientAuthAdapter, AccessToken } from '@strata-adapters/auth/types';
+import { ClientAuthService } from '@/auth/client-auth-service';
+import type { ClientAuthAdapter, AccessToken } from '@/auth/types';
 
 function tok(name: string, token: string, expiresInSec = 3600): AccessToken {
   return { name, token, expiresAt: Date.now() + expiresInSec * 1000 };

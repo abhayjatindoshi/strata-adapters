@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { validateGoogleDriveMeta } from '@strata-adapters/providers/google/google-tenant-meta';
+import { validateGoogleDriveMeta } from '@/providers/google/google-tenant-meta';
 
 describe('validateGoogleDriveMeta', () => {
   it('accepts appDataFolder space', () => {

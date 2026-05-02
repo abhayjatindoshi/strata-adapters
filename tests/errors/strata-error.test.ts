@@ -1,114 +1,92 @@
 import { describe, it, expect } from 'vitest';
 import {
   StrataError,
-  AuthExpiredError,
-  QuotaExceededError,
-  NotFoundError,
-  PermissionDeniedError,
-  OfflineError,
-  RateLimitedError,
-  DataCorruptedError,
-} from '@strata-adapters/errors/strata-error';
+  StorageError,
+  StrataPluginConfigError,
+} from '@/errors/strata-error';
 
 describe('StrataError hierarchy', () => {
   it('StrataError has correct properties', () => {
-    const original = new Error('raw');
+    const cause = new Error('raw');
     const err = new StrataError('something broke', {
       kind: 'unknown',
-      operation: 'read',
       retryable: false,
-      originalError: original,
+      cause,
     });
     expect(err).toBeInstanceOf(Error);
     expect(err).toBeInstanceOf(StrataError);
     expect(err.name).toBe('StrataError');
     expect(err.kind).toBe('unknown');
-    expect(err.operation).toBe('read');
     expect(err.retryable).toBe(false);
-    expect(err.originalError).toBe(original);
+    expect(err.cause).toBe(cause);
     expect(err.message).toBe('something broke');
   });
 
   it('StrataError defaults retryable to false', () => {
-    const err = new StrataError('msg', { kind: 'unknown', operation: 'write' });
+    const err = new StrataError('msg', { kind: 'unknown' });
     expect(err.retryable).toBe(false);
   });
 
-  it('AuthExpiredError', () => {
-    const err = new AuthExpiredError('read');
+  it('StorageError auth-expired', () => {
+    const err = new StorageError('Token expired', { kind: 'auth-expired' });
     expect(err).toBeInstanceOf(StrataError);
-    expect(err).toBeInstanceOf(AuthExpiredError);
-    expect(err.name).toBe('AuthExpiredError');
+    expect(err).toBeInstanceOf(StorageError);
+    expect(err.name).toBe('StorageError');
     expect(err.kind).toBe('auth-expired');
     expect(err.retryable).toBe(false);
   });
 
-  it('QuotaExceededError', () => {
-    const err = new QuotaExceededError('write');
+  it('StorageError quota-exceeded', () => {
+    const err = new StorageError('Full', { kind: 'quota-exceeded' });
     expect(err).toBeInstanceOf(StrataError);
     expect(err.kind).toBe('quota-exceeded');
     expect(err.retryable).toBe(false);
   });
 
-  it('NotFoundError', () => {
-    const err = new NotFoundError('read');
-    expect(err).toBeInstanceOf(StrataError);
+  it('StorageError not-found', () => {
+    const err = new StorageError('Missing', { kind: 'not-found' });
     expect(err.kind).toBe('not-found');
     expect(err.retryable).toBe(false);
   });
 
-  it('PermissionDeniedError', () => {
-    const err = new PermissionDeniedError('write');
-    expect(err).toBeInstanceOf(StrataError);
+  it('StorageError permission-denied', () => {
+    const err = new StorageError('Forbidden', { kind: 'permission-denied' });
     expect(err.kind).toBe('permission-denied');
     expect(err.retryable).toBe(false);
   });
 
-  it('OfflineError', () => {
-    const err = new OfflineError('sync');
-    expect(err).toBeInstanceOf(StrataError);
+  it('StorageError offline', () => {
+    const err = new StorageError('No network', { kind: 'offline', retryable: true });
     expect(err.kind).toBe('offline');
     expect(err.retryable).toBe(true);
   });
 
-  it('RateLimitedError', () => {
-    const err = new RateLimitedError('read', 5000);
-    expect(err).toBeInstanceOf(StrataError);
+  it('StorageError rate-limited with retryAfterMs', () => {
+    const err = new StorageError('Throttled', { kind: 'rate-limited', retryable: true, retryAfterMs: 5000 });
     expect(err.kind).toBe('rate-limited');
     expect(err.retryable).toBe(true);
     expect(err.retryAfterMs).toBe(5000);
   });
 
-  it('RateLimitedError without retryAfterMs', () => {
-    const err = new RateLimitedError('write');
+  it('StorageError rate-limited without retryAfterMs', () => {
+    const err = new StorageError('Throttled', { kind: 'rate-limited', retryable: true });
     expect(err.retryAfterMs).toBeUndefined();
   });
 
-  it('DataCorruptedError', () => {
-    const err = new DataCorruptedError('read');
-    expect(err).toBeInstanceOf(StrataError);
+  it('StorageError data-corrupted', () => {
+    const err = new StorageError('Bad data', { kind: 'data-corrupted' });
     expect(err.kind).toBe('data-corrupted');
     expect(err.retryable).toBe(false);
   });
 
-  it('all subclasses preserve originalError', () => {
-    const original = new Error('root cause');
-    const errors = [
-      new AuthExpiredError('read', original),
-      new QuotaExceededError('write', original),
-      new NotFoundError('read', original),
-      new PermissionDeniedError('delete', original),
-      new OfflineError('sync', original),
-      new RateLimitedError('read', undefined, original),
-      new DataCorruptedError('read', original),
-    ];
-    for (const err of errors) {
-      expect(err.originalError).toBe(original);
-    }
+  it('StorageError preserves cause', () => {
+    const cause = new Error('root cause');
+    const err = new StorageError('Failed', { kind: 'auth-expired', cause });
+    expect(err.cause).toBe(cause);
   });
 
   it('can be caught by kind in a switch', () => {
-    const err: StrataError = new AuthExpiredError('read');
+    const err: StrataError = new StorageError('Expired', { kind: 'auth-expired' });
     let matched = false;
     switch (err.kind) {
       case 'auth-expired':
@@ -119,9 +97,15 @@ describe('StrataError hierarchy', () => {
   });
 
   it('can be caught by instanceof', () => {
-    const err: Error = new RateLimitedError('read', 1000);
+    const err: Error = new StorageError('Throttled', { kind: 'rate-limited', retryable: true, retryAfterMs: 1000 });
     expect(err instanceof StrataError).toBe(true);
-    expect(err instanceof RateLimitedError).toBe(true);
-    expect(err instanceof AuthExpiredError).toBe(false);
+    expect(err instanceof StorageError).toBe(true);
+  });
+
+  it('StrataPluginConfigError is not a StrataError', () => {
+    const err = new StrataPluginConfigError('Bad config');
+    expect(err).toBeInstanceOf(Error);
+    expect(err).not.toBeInstanceOf(StrataError);
+    expect(err.name).toBe('StrataPluginConfigError');
   });
 });
