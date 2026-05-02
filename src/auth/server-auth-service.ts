@@ -1,4 +1,5 @@
 import type { ServerAuthAdapter } from './types';
+import { StrataPluginConfigError } from '@/errors/strata-error';
 import { log } from '@/log';
 import {
   generateState,
@@ -55,7 +56,7 @@ export class ServerAuthService {
     const byName = new Map<string, ServerAuthAdapter>();
     for (const a of adapters) {
       if (byName.has(a.name)) {
-        throw new Error(`ServerAuthService: duplicate adapter name "${a.name}"`);
+        throw new StrataPluginConfigError(`ServerAuthService: duplicate adapter name "${a.name}"`);
       }
       byName.set(a.name, a);
     }

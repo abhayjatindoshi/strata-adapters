@@ -1,4 +1,5 @@
 import { toArrayBuffer, toBase64, fromBase64 } from '@strata/core';
+import { EncryptionError } from './errors';
 
 // ─── Constants ───────────────────────────────────────────
 
@@ -91,11 +92,11 @@ export async function aesGcmDecrypt(
   const GCM_TAG_LENGTH = 16;
   const minLength = 1 + IV_LENGTH + GCM_TAG_LENGTH; // version + IV + GCM auth tag
   if (data.length < minLength) {
-    throw new Error(`Encrypted data too short (${data.length} bytes, minimum ${minLength})`);
+    throw new EncryptionError(`Encrypted data too short (${data.length} bytes, minimum ${minLength})`, { kind: 'data-corrupted' });
   }
   const version = data[0];
   if (version !== ENCRYPTION_VERSION) {
-    throw new Error(`Unsupported encryption version: ${version}`);
+    throw new EncryptionError(`Unsupported encryption version: ${version}`, { kind: 'data-corrupted' });
   }
   const iv = data.slice(1, 1 + IV_LENGTH);
   const ciphertext = data.slice(1 + IV_LENGTH);

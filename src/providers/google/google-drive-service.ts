@@ -1,6 +1,5 @@
 import type { AccessToken } from '@/auth/types';
-import { AuthExpiredError } from '@/errors/strata-error';
-import type { ErrorOperation } from '@/errors/strata-error';
+import { StorageError, StrataPluginConfigError } from '@/errors/strata-error';
 import { log } from '@/log';
 import type {
   CloudFile,
@@ -60,7 +59,7 @@ export class GoogleDriveService extends GoogleDriveAdapter implements CloudFileS
     search: string,
     signal?: AbortSignal,
   ): Promise<readonly CloudFile[]> {
-    const token = await this.requireToken('read');
+    const token = await this.requireToken();
 
     const filters: string[] = ['trashed=false'];
     if (space.id === 'sharedWithMe' && !parentId) {
@@ -88,7 +87,7 @@ export class GoogleDriveService extends GoogleDriveAdapter implements CloudFileS
       headers: { Authorization: `Bearer ${token}` },
       signal,
     });
-    if (!res.ok) throw mapDriveError('read', res);
+    if (!res.ok) throw mapDriveError(res);
 
     const body = (await res.json()) as { readonly files?: readonly DriveFileRaw[] };
     const files = (body.files ?? []).map(toCloudFile);
@@ -102,7 +101,7 @@ export class GoogleDriveService extends GoogleDriveAdapter implements CloudFileS
     parentId: string | null,
     signal?: AbortSignal,
   ): Promise<CloudFile> {
-    const token = await this.requireToken('write');
+    const token = await this.requireToken();
 
     const parents = parentId
       ? [parentId]
@@ -113,7 +112,7 @@ export class GoogleDriveService extends GoogleDriveAdapter implements CloudFileS
           : undefined;
 
     if (!parents) {
-      throw new Error(`Cannot create folder in "${space.id}" without a parent folder`);
+      throw new StrataPluginConfigError(`Cannot create folder in "${space.id}" without a parent folder`);
     }
 
     const res = await fetch(`${DRIVE_API}?fields=id,name,mimeType,modifiedTime,size`, {
@@ -125,18 +124,18 @@ export class GoogleDriveService extends GoogleDriveAdapter implements CloudFileS
       body: JSON.stringify({ name, mimeType: FOLDER_MIME, parents }),
       signal,
     });
-    if (!res.ok) throw mapDriveError('write', res);
+    if (!res.ok) throw mapDriveError(res);
 
     const raw = (await res.json()) as DriveFileRaw;
     log.storage.google('created folder %s (id=%s)', name, raw.id);
     return toCloudFile(raw);
   }
 
-  private async requireToken(op: ErrorOperation): Promise<string> {
+  private async requireToken(): Promise<string> {
     const token = await this.tokenSupplier();
-    if (!token) throw new AuthExpiredError(op, new Error('No access token available'));
+    if (!token) throw new StorageError('No access token available', { kind: 'auth-expired' });
     if (token.name !== 'google') {
-      throw new AuthExpiredError(op, new Error(`Expected google access token, got ${token.name}`));
+      throw new StorageError(`Expected google access token, got ${token.name}`, { kind: 'auth-expired' });
     }
     return token.token;
   }

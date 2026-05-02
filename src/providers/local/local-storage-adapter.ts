@@ -1,13 +1,13 @@
 import type { StorageAdapter, Tenant } from '@strata/core';
 import { compositeKey, toBase64, fromBase64 } from '@strata/core';
-import { QuotaExceededError } from '@/errors/strata-error';
+import { StorageError, StrataPluginConfigError } from '@/errors/strata-error';
 import { log } from '@/log';
 
 export class LocalStorageAdapter implements StorageAdapter {
 
   constructor(private readonly prefix: string = 'strata') {
     if (typeof globalThis.localStorage === 'undefined') {
-      throw new Error('LocalStorageAdapter requires a browser environment with localStorage');
+      throw new StrataPluginConfigError('LocalStorageAdapter requires a browser environment with localStorage');
     }
   }
 
@@ -33,7 +33,7 @@ export class LocalStorageAdapter implements StorageAdapter {
       log.storage.local('write %s (%d bytes)', compositeKey(tenant, key), data.length);
     } catch (e) {
       if (e instanceof DOMException && e.name === 'QuotaExceededError') {
-        throw new QuotaExceededError('write', e);
+        throw new StorageError('Storage quota exceeded', { kind: 'quota-exceeded', cause: e });
       }
       const message = e instanceof Error ? e.message : String(e);
       throw new Error(`localStorage write failed for key "${key}": ${message}`, { cause: e });

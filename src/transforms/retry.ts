@@ -1,6 +1,6 @@
 import type { StorageAdapter, Tenant } from '@strata/core';
 import { StrataError } from '@strata/core';
-import { RateLimitedError } from '../errors/strata-error';
+import { StorageError } from '../errors/strata-error';
 import { log } from '@/log';
 
 export type RetryOptions = {
@@ -8,6 +8,18 @@ export type RetryOptions = {
   readonly delayMs?: number;
   readonly onRetry?: (attempt: number, error: Error) => void;
 };
+
+function isRetryable(err: unknown): boolean {
+  if (err instanceof StrataError) return err.retryable;
+  return true;
+}
+
+function getRetryDelay(err: unknown, attempt: number, baseDelayMs: number): number {
+  if (err instanceof StorageError && err.retryAfterMs) {
+    return err.retryAfterMs;
+  }
+  return baseDelayMs * Math.pow(2, attempt) * (0.5 + Math.random());
+}
 
 async function withRetries<T>(
   fn: () => Promise<T>,
@@ -22,11 +34,13 @@ async function withRetries<T>(
       return await fn();
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
-      if (attempt < maxRetries) {
-        const delay = delayMs * Math.pow(2, attempt) * (0.5 + Math.random());
+      if (attempt < maxRetries && isRetryable(err)) {
+        const delay = getRetryDelay(err, attempt, delayMs);
         log.transform('retry attempt %d/%d (delay=%dms): %s', attempt + 1, maxRetries, Math.round(delay), lastError.message);
         options.onRetry?.(attempt + 1, lastError);
         await new Promise(r => setTimeout(r, delay));
+      } else {
+        throw lastError;
       }
     }
   }

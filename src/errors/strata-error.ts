@@ -1,9 +1,8 @@
-import { StrataError, type ErrorOperation } from '@strata/core';
+import { StrataError } from '@strata/core';
 
-export type { ErrorOperation } from '@strata/core';
 export { StrataError } from '@strata/core';
 
-export type ErrorKind =
+export type StorageErrorKind =
   | 'auth-expired'
   | 'quota-exceeded'
   | 'not-found'
@@ -13,89 +12,24 @@ export type ErrorKind =
   | 'data-corrupted'
   | 'unknown';
 
-export class AuthExpiredError extends StrataError {
-  constructor(operation: ErrorOperation, originalError?: Error) {
-    super('Authentication expired — please sign in again', {
-      kind: 'auth-expired',
-      operation,
-      retryable: false,
-      originalError,
-    });
-    this.name = 'AuthExpiredError';
-  }
-}
-
-export class QuotaExceededError extends StrataError {
-  constructor(operation: ErrorOperation, originalError?: Error) {
-    super('Storage quota exceeded', {
-      kind: 'quota-exceeded',
-      operation,
-      retryable: false,
-      originalError,
-    });
-    this.name = 'QuotaExceededError';
-  }
-}
-
-export class NotFoundError extends StrataError {
-  constructor(operation: ErrorOperation, originalError?: Error) {
-    super('Storage location not found', {
-      kind: 'not-found',
-      operation,
-      retryable: false,
-      originalError,
-    });
-    this.name = 'NotFoundError';
-  }
-}
-
-export class PermissionDeniedError extends StrataError {
-  constructor(operation: ErrorOperation, originalError?: Error) {
-    super('Permission denied — access to storage was revoked', {
-      kind: 'permission-denied',
-      operation,
-      retryable: false,
-      originalError,
-    });
-    this.name = 'PermissionDeniedError';
-  }
-}
-
-export class OfflineError extends StrataError {
-  constructor(operation: ErrorOperation, originalError?: Error) {
-    super('No network connectivity', {
-      kind: 'offline',
-      operation,
-      retryable: true,
-      originalError,
-    });
-    this.name = 'OfflineError';
-  }
-}
-
-export class RateLimitedError extends StrataError {
+export class StorageError extends StrataError {
   readonly retryAfterMs?: number;
 
-  constructor(operation: ErrorOperation, retryAfterMs?: number, originalError?: Error) {
-    super('Too many requests — rate limited', {
-      kind: 'rate-limited',
-      operation,
-      retryable: true,
-      originalError,
-    });
-    this.name = 'RateLimitedError';
-    this.retryAfterMs = retryAfterMs;
+  constructor(message: string, options: {
+    readonly kind: StorageErrorKind;
+    readonly retryable?: boolean;
+    readonly retryAfterMs?: number;
+    readonly cause?: Error;
+  }) {
+    super(message, { kind: options.kind, retryable: options.retryable, cause: options.cause });
+    this.name = 'StorageError';
+    this.retryAfterMs = options.retryAfterMs;
   }
 }
 
-export class DataCorruptedError extends StrataError {
-  constructor(operation: ErrorOperation, originalError?: Error) {
-    super('Data is corrupted — cannot deserialize or decrypt', {
-      kind: 'data-corrupted',
-      operation,
-      retryable: false,
-      originalError,
-    });
-    this.name = 'DataCorruptedError';
+export class StrataPluginConfigError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'StrataPluginConfigError';
   }
 }

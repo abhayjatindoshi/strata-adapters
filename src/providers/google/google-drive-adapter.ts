@@ -1,7 +1,7 @@
 import type { StorageAdapter, Tenant } from '@strata/core'
 import { compositeKey, fnvHash, generateId } from '@strata/core'
 import type { AccessToken } from '@/auth/types'
-import { AuthExpiredError } from '@/errors/strata-error'
+import { StorageError, StrataPluginConfigError } from '@/errors/strata-error'
 import { mapDriveError } from './google-drive-errors'
 import { log } from '@/log'
 
@@ -19,12 +19,12 @@ function getDriveMeta(tenant: Tenant | undefined): DriveMeta {
   if (!tenant) return { space: 'appDataFolder' }
   const meta = tenant.meta as { space?: string; folderId?: string }
   const space = meta.space as DriveSpace | undefined
-  if (!space) throw new Error(`Tenant "${tenant.id}" missing required meta.space`)
+  if (!space) throw new StrataPluginConfigError(`Tenant "${tenant.id}" missing required meta.space`)
   if (space === 'drive' && !meta.folderId) {
-    throw new Error(`Tenant "${tenant.id}" with space "drive" requires meta.folderId`)
+    throw new StrataPluginConfigError(`Tenant "${tenant.id}" with space "drive" requires meta.folderId`)
   }
   if (space === 'sharedWithMe' && !meta.folderId) {
-    throw new Error(`Tenant "${tenant.id}" with space "sharedWithMe" requires meta.folderId`)
+    throw new StrataPluginConfigError(`Tenant "${tenant.id}" with space "sharedWithMe" requires meta.folderId`)
   }
   return { space, folderId: meta.folderId }
 }
@@ -39,12 +39,9 @@ export class GoogleDriveAdapter implements StorageAdapter {
 
   private async getAccessToken(): Promise<string> {
     const token = await this.getToken()
-    if (!token) throw new AuthExpiredError('read', new Error('No access token available'))
+    if (!token) throw new StorageError('No access token available', { kind: 'auth-expired' })
     if (token.name !== 'google') {
-      throw new AuthExpiredError(
-        'read',
-        new Error(`Expected google access token, got ${token.name}`),
-      )
+      throw new StorageError(`Expected google access token, got ${token.name}`, { kind: 'auth-expired' })
     }
     return token.token
   }
@@ -68,7 +65,7 @@ export class GoogleDriveAdapter implements StorageAdapter {
       this.fileIdCache.delete(compositeKey(tenant, key))
       return null
     }
-    if (!response.ok) throw mapDriveError('read', response)
+    if (!response.ok) throw mapDriveError(response)
 
     log.storage.google('read %s (%d bytes)', key, (await response.clone().arrayBuffer()).byteLength)
     return new Uint8Array(await response.arrayBuffer())
@@ -87,7 +84,7 @@ export class GoogleDriveAdapter implements StorageAdapter {
         },
         body: data as BodyInit,
       })
-      if (!response.ok) throw mapDriveError('write', response)
+      if (!response.ok) throw mapDriveError(response)
       log.storage.google('updated %s', key)
     } else {
       const { space, folderId } = getDriveMeta(tenant)
@@ -122,7 +119,7 @@ export class GoogleDriveAdapter implements StorageAdapter {
         },
         body: multipart,
       })
-      if (!response.ok) throw mapDriveError('write', response)
+      if (!response.ok) throw mapDriveError(response)
 
       const result = (await response.json()) as { id: string }
       this.fileIdCache.set(compositeKey(tenant, key), result.id)
@@ -144,7 +141,7 @@ export class GoogleDriveAdapter implements StorageAdapter {
       this.fileIdCache.delete(compositeKey(tenant, key))
       return false
     }
-    if (!response.ok) throw mapDriveError('delete', response)
+    if (!response.ok) throw mapDriveError(response)
     this.fileIdCache.delete(compositeKey(tenant, key))
     log.storage.google('deleted %s', key)
     return true
@@ -183,7 +180,7 @@ export class GoogleDriveAdapter implements StorageAdapter {
     const response = await fetch(`${DRIVE_API}?${params}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
-    if (!response.ok) throw mapDriveError('resolve', response)
+    if (!response.ok) throw mapDriveError(response)
 
     const result = (await response.json()) as { files: { id: string }[] }
     const fileId = result.files[0]?.id ?? null

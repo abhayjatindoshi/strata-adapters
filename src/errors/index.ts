@@ -1,11 +1,6 @@
 export {
   StrataError,
-  AuthExpiredError,
-  QuotaExceededError,
-  NotFoundError,
-  PermissionDeniedError,
-  OfflineError,
-  RateLimitedError,
-  DataCorruptedError,
+  StorageError,
+  StrataPluginConfigError,
 } from './strata-error';
-export type { ErrorKind, ErrorOperation } from './strata-error';
+export type { StorageErrorKind } from './strata-error';

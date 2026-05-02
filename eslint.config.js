@@ -3,7 +3,7 @@ import tseslint from 'typescript-eslint';
 import { defineConfig, globalIgnores } from 'eslint/config';
 
 export default defineConfig([
-  globalIgnores(['dist', 'tests', 'vitest.config.ts', 'eslint.config.js']),
+  globalIgnores(['dist', 'tests', '*.config.*']),
   {
     files: ['**/*.ts'],
     extends: [js.configs.recommended, tseslint.configs.strictTypeChecked],

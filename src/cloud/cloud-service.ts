@@ -1,6 +1,7 @@
 import { BehaviorSubject, distinctUntilChanged, type Observable, type Subscription } from 'rxjs';
 import type { StorageAdapter } from '@strata/core';
 import type { ClientAuthService } from '@/auth/client-auth-service';
+import { StrataPluginConfigError } from '@/errors/strata-error';
 import { log } from '@/log';
 
 /** A named storage adapter — the name matches the auth adapter name. */
@@ -29,7 +30,7 @@ export class CloudService {
   ) {
     const byName = new Map<string, CloudAdapter>();
     for (const a of adapters) {
-      if (byName.has(a.name)) throw new Error(`CloudService: duplicate adapter name "${a.name}"`);
+      if (byName.has(a.name)) throw new StrataPluginConfigError(`CloudService: duplicate adapter name "${a.name}"`);
       byName.set(a.name, a);
     }
     this.byName = byName;
