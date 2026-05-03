@@ -33,7 +33,7 @@ async function withRetries<T>(
     try {
       return await fn();
     } catch (err) {
-      lastError = err instanceof Error ? err : new Error(String(err));
+      lastError = err instanceof Error ? err : new StrataError(String(err), { kind: 'unknown' });
       if (attempt < maxRetries && isRetryable(err)) {
         const delay = getRetryDelay(err, attempt, delayMs);
         log.transform('retry attempt %d/%d (delay=%dms): %s', attempt + 1, maxRetries, Math.round(delay), lastError.message);
@@ -45,7 +45,7 @@ async function withRetries<T>(
     }
   }
   log.transform.error('giving up after %d attempts', maxRetries + 1);
-  throw lastError ?? new Error('retry failed');
+  throw lastError ?? new StorageError('retry failed', { kind: 'unknown' });
 }
 
 export function withRetry(adapter: StorageAdapter, options: RetryOptions = {}): StorageAdapter {

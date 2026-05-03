@@ -36,7 +36,7 @@ export class LocalStorageAdapter implements StorageAdapter {
         throw new StorageError('Storage quota exceeded', { kind: 'quota-exceeded', cause: e });
       }
       const message = e instanceof Error ? e.message : String(e);
-      throw new Error(`localStorage write failed for key "${key}": ${message}`, { cause: e });
+      throw new StorageError(`localStorage write failed for key "${key}": ${message}`, { kind: 'unknown', cause: e instanceof Error ? e : undefined });
     }
     return Promise.resolve();
   }

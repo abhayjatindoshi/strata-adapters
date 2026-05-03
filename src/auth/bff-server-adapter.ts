@@ -1,5 +1,5 @@
 import type { ServerAuthAdapter, ServerAuthTokenResult, OAuthEndpoints } from './types';
-import { StrataPluginConfigError } from '@/errors/strata-error';
+import { StorageError, StrataPluginConfigError } from '@/errors/strata-error';
 import { log } from '@/log';
 
 export type BffServerAdapterConfig = {
@@ -84,7 +84,7 @@ export class BffServerAdapter implements ServerAuthAdapter {
     });
     if (!response.ok) {
       log.auth.error('token request failed: %d', response.status);
-      throw new Error(`Token request failed: ${response.status}`);
+      throw new StorageError(`Token request failed: ${response.status}`, { kind: 'auth-expired' });
     }
     return (await response.json()) as { access_token: string; refresh_token?: string; expires_in: number };
   }

@@ -1,6 +1,6 @@
-import { StrataError } from '@strata/core';
+import { StrataError, StrataConfigError } from '@strata/core';
 
-export { StrataError } from '@strata/core';
+export { StrataError, StrataConfigError } from '@strata/core';
 
 export type StorageErrorKind =
   | 'auth-expired'
@@ -27,7 +27,7 @@ export class StorageError extends StrataError {
   }
 }
 
-export class StrataPluginConfigError extends Error {
+export class StrataPluginConfigError extends StrataConfigError {
   constructor(message: string) {
     super(message);
     this.name = 'StrataPluginConfigError';

@@ -1,5 +1,6 @@
 export {
   StrataError,
+  StrataConfigError,
   StorageError,
   StrataPluginConfigError,
 } from './strata-error';

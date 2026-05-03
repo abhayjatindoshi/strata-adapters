@@ -1,4 +1,5 @@
 import type { AccessToken, ClientAuthAdapter } from './types';
+import { StrataPluginConfigError } from '@/errors/strata-error';
 
 const NOT_IMPLEMENTED = 'PkceClientAdapter is not implemented yet.';
 
@@ -15,11 +16,11 @@ export class PkceClientAdapter implements ClientAuthAdapter {
   }
 
   login(): Promise<void> {
-    return Promise.reject(new Error(NOT_IMPLEMENTED));
+    return Promise.reject(new StrataPluginConfigError(NOT_IMPLEMENTED));
   }
 
   logout(): Promise<void> {
-    return Promise.reject(new Error(NOT_IMPLEMENTED));
+    return Promise.reject(new StrataPluginConfigError(NOT_IMPLEMENTED));
   }
 
   refresh(): Promise<AccessToken | null> {
